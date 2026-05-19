@@ -2,14 +2,55 @@
   "expo": {
     "name": "Timely",
     "slug": "Timely",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "timely",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "owner": "princekay",
+    "splash": {
+      "backgroundColor": "#ffffff",
+      "resizeMode": "contain"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "bundleIdentifier": "com.timely.booking",
+      "entitlements": {
+        "aps-environment": "production"
+      },
+      "splash": {
+        "backgroundColor": "#ffffff"
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take photos of your business.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images.",
+        "NSLocationWhenInUseUsageDescription": "Timely uses your location to help you find service providers near you and to provide accurate directions to your appointments. If you're a business owner, we also use your location to set your shop address so customers can easily find you.",
+        "LSApplicationQueriesSchemes": [
+          "whatsapp",
+          "maps",
+          "comgooglemaps",
+          "googlemaps"
+        ],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.131563851716-69cb85s7lod35s6915pd9t375qki0osd"
+            ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.131563851716-69cb85s7lod35s6915pd9t375qki0osd"
+            ]
+          }
+        ],
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,8 +59,33 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "splash": {
+        "backgroundColor": "#8B5CF6"
+      },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "com.googleusercontent.apps.131563851716-63e80lu1nu5dnbq2r3jg7urcm7d4dpi1"
+          },
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "package": "com.timely.booking",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -27,22 +93,52 @@
     },
     "plugins": [
       "expo-router",
+      "expo-av",
+      "./plugins/withAPNSToken",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
           "backgroundColor": "#ffffff",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#ffffff"
           }
         }
-      ]
+      ],
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static",
+            "buildReactNativeFromSource": true,
+            "podfile": "./ios/CustomPodfile"
+          }
+        }
+      ],
+      "@react-native-google-signin/google-signin",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "expo-notifications",
+      ["expo-apple-authentication"]
+      
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c2adce59-e203-429e-aa2d-953045cd854b"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c2adce59-e203-429e-aa2d-953045cd854b"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
     }
   }
 }

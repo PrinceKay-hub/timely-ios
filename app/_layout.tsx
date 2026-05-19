@@ -1,24 +1,113 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider } from '@/providers/ThemeProvider';
+import { AuthProvider } from '@/services/AuthProvider';
+import { useAuthStore } from '@/stores/auth';
+import { initNotifications, onMessageListener } from '@/services/notifications';
+import { initLocation } from '@/services/location';
+import { loadStoredData } from '@/services/storage';
+import { configureGoogleSignIn } from '@/hooks/useGoogleAuth';
+import { useAppUpdate } from '@/hooks/useAppUpdate';
+import { UpdateModal } from '@/components/Updatemodal';
+import * as SplashScreen from 'expo-splash-screen';
+import { DeviceEventEmitter } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from '@/components/NotificationToast';
+import { playNotificationSound, configureAudioSession } from '@/utils/notificationSound';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+// ── Run before component mounts ───────────────────────────────────────────────
+SplashScreen.preventAutoHideAsync();
+configureGoogleSignIn();
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const { user } = useAuthStore();
+  const { status, downloadAndRestart } = useAppUpdate();
+  const [modalDismissed, setModalDismissed] = useState(false);
+
+  // ── Hide native splash immediately (custom splash in index.tsx takes over) ─
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
+  // ── Location + storage — run once regardless of auth state ────────────────
+  useEffect(() => {
+    initLocation();
+    loadStoredData();
+  }, []);
+
+  // ── Notifications — only when user is signed in ───────────────────────────
+  
+  useEffect(() => {
+    if (!user) return;
+    configureAudioSession();
+    initNotifications();
+    // Start Firebase foreground listener
+    const unsubscribe = onMessageListener();
+
+    // Listen for notification events and show toast
+    const sub = DeviceEventEmitter.addListener(
+      'foreground_notification',
+      ({ title, body }) => {
+      
+        playNotificationSound();
+
+        Toast.show({
+          type: 'notification',
+          text1: title,
+          text2: body,
+          position: 'top',
+          visibilityTime: 7000,
+          topOffset: 60,
+        });
+      }
+    );
+
+    return () => {
+      unsubscribe?.();
+      sub.remove();
+    };
+  }, [user]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <StatusBar style="auto" />
+
+          <Stack>
+            <Stack.Screen name="index"                          options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)"                         options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)"                         options={{ headerShown: false }} />
+            <Stack.Screen name="OnboardingScreen"               options={{ headerShown: false }} />
+            <Stack.Screen name="service/[id]"                   options={{ headerShown: false }} />
+            <Stack.Screen name="booking/[id]"                   options={{ headerShown: false }} />
+            <Stack.Screen name="reschedule/[id]"                options={{ headerShown: false }} />
+            <Stack.Screen name="rebook/[id]"                    options={{ headerShown: false }} />
+            <Stack.Screen name="search/index"                   options={{ headerShown: false }} />
+            <Stack.Screen name="location/regions"               options={{ headerShown: false }} />
+            <Stack.Screen name="search/results"                 options={{ headerShown: false }} />
+            <Stack.Screen name="search/categoryresults"         options={{ headerShown: false }} />
+            <Stack.Screen name="manage/registration/index"      options={{ headerShown: false }} />
+            <Stack.Screen name="portfolio/portfolioscreen"      options={{ headerShown: false }} />
+            <Stack.Screen name="about"                          options={{ headerShown: false }} />
+            <Stack.Screen name="privacy"                        options={{ headerShown: false }} />
+            <Stack.Screen name="terms"                          options={{ headerShown: false }} />
+          </Stack>
+
+          {/* ── UpdateModal must be OUTSIDE <Stack> to overlay all screens ── */}
+          <UpdateModal
+            status={status}
+            onUpdate={downloadAndRestart}
+            onDismiss={() => setModalDismissed(true)}
+          />
+          <Toast config={toastConfig} />
+
+        </SafeAreaProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

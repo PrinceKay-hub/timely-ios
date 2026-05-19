@@ -1,0 +1,62 @@
+import React from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+
+const PURPLE = '#8B5CF6';
+
+interface RescheduleDialogProps {
+  visible: boolean;
+  booking: any;
+  onReschedule: () => void;
+  onClose: () => void;
+}
+
+export const RescheduleDialog: React.FC<RescheduleDialogProps> = ({
+  visible,
+  onReschedule,
+  onClose,
+}) => {
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.dialog}>
+          <Text style={styles.title}>Reschedule Appointment</Text>
+          <Text style={styles.message}>
+            Would you like to choose a new date and time for this appointment?
+          </Text>
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.confirmBtn} onPress={onReschedule}>
+              <Text style={styles.confirmText}>Reschedule</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  dialog: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
+  message: { color: 'gray', marginBottom: 24 },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
+  cancelBtn: { padding: 12, marginRight: 8 },
+  cancelText: { color: 'gray', fontWeight: '600' },
+  confirmBtn: { backgroundColor: PURPLE, padding: 12, borderRadius: 8 },
+  confirmText: { color: 'white', fontWeight: 'bold' },
+});

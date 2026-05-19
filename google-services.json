@@ -1,0 +1,162 @@
+{
+  "project_info": {
+    "project_number": "131563851716",
+    "project_id": "booking-cd20f",
+    "storage_bucket": "booking-cd20f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:131563851716:android:164386603364de2ee8de91",
+        "android_client_info": {
+          "package_name": "com.example.booking"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "131563851716-iinfhir3uuf40pv07ij8ps88iovkl6cd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.booking",
+            "certificate_hash": "7495c1ec62b9ec4c85936c8a072434a572a0345c"
+          }
+        },
+        {
+          "client_id": "131563851716-nv4agnun3tn00mtbbgshpk8m9jcdd0me.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAR85x6hY4QPbqXGWrnZTN_Kc6GfBU_RM"
+        },
+        {
+          "current_key": "AIzaSyBJNNLDuZ9ILgLKLvosdvx71Sm90JeqEfc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "131563851716-bopcqg6t8714fmfps2826gb3bi10abhb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "131563851716-2og4oua7smmtbvnviqja3je1q5o6g5bt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.timely.booking",
+                "app_store_id": "6739708162"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:131563851716:android:4ac0b2d019972d6de8de91",
+        "android_client_info": {
+          "package_name": "com.timely.admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "131563851716-nv4agnun3tn00mtbbgshpk8m9jcdd0me.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAR85x6hY4QPbqXGWrnZTN_Kc6GfBU_RM"
+        },
+        {
+          "current_key": "AIzaSyBJNNLDuZ9ILgLKLvosdvx71Sm90JeqEfc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "131563851716-bopcqg6t8714fmfps2826gb3bi10abhb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "131563851716-2og4oua7smmtbvnviqja3je1q5o6g5bt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.timely.booking",
+                "app_store_id": "6739708162"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:131563851716:android:fab59a6bdb305af7e8de91",
+        "android_client_info": {
+          "package_name": "com.timely.booking"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "131563851716-63e80lu1nu5dnbq2r3jg7urcm7d4dpi1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.timely.booking",
+            "certificate_hash": "7495c1ec62b9ec4c85936c8a072434a572a0345c"
+          }
+        },
+        {
+          "client_id": "131563851716-ea5skvmq224i1jvqlenub1o1jv29t6vl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.timely.booking",
+            "certificate_hash": "a7cb64e985f526dea08301461443068edad9a521"
+          }
+        },
+        {
+          "client_id": "131563851716-m3f3ku21h6hgh37klgarmamd9fogk3d4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.timely.booking",
+            "certificate_hash": "5d4833c82aed3ce765aa85f99fbd5d0ebf6eda35"
+          }
+        },
+        {
+          "client_id": "131563851716-nv4agnun3tn00mtbbgshpk8m9jcdd0me.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAR85x6hY4QPbqXGWrnZTN_Kc6GfBU_RM"
+        },
+        {
+          "current_key": "AIzaSyBJNNLDuZ9ILgLKLvosdvx71Sm90JeqEfc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "131563851716-bopcqg6t8714fmfps2826gb3bi10abhb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "131563851716-2og4oua7smmtbvnviqja3je1q5o6g5bt.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.timely.booking",
+                "app_store_id": "6739708162"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
