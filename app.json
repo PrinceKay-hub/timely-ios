@@ -2,7 +2,7 @@
   "expo": {
     "name": "Timely",
     "slug": "Timely",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "timely",
@@ -17,6 +17,7 @@
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.timely.booking",
+      "associatedDomains": ["applinks:timelygh.com"],
       "entitlements": {
         "aps-environment": "production"
       },
@@ -74,10 +75,18 @@
       ],
       "intentFilters": [
         {
+          "autoVerify": true,
           "action": "VIEW",
-          "data": {
+          "data": [
+            {
             "scheme": "com.googleusercontent.apps.131563851716-63e80lu1nu5dnbq2r3jg7urcm7d4dpi1"
           },
+          {
+              "scheme": "https",
+              "host": "timelygh.com",
+              "pathPrefix": "/"
+            }
+          ],
           "category": [
             "BROWSABLE",
             "DEFAULT"

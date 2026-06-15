@@ -23,7 +23,8 @@ import WorkingHoursDisplay from '@/components/WorkingHoursDisplay';
 import { useServiceDataStore } from '@/stores/serviceData';
 import { Snackbar } from '@/components/Snackbar';
 import { useEffect } from 'react';
-import { PortfolioTab, PortfolioTabContent } from '@/components/portfolio/PortfolioTab';
+import { PortfolioTabContent } from '@/components/portfolio/PortfolioTab';
+import GalleryWidget from '@/components/Gallerywidget';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
@@ -36,6 +37,9 @@ export default function DetailScreen() {
   const { favoriteIds, toggleFavorite } = useFavoriteStore();
   const { reviews, fetchReviews, isLoading: reviewsLoading } = useReviewStore();
   const { currentService, isLoading, error, fetchServiceById } = useServiceDataStore();
+
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLoadingDirections, setIsLoadingDirections] = useState(false);
@@ -88,9 +92,9 @@ export default function DetailScreen() {
 
   const handleShare = async () => {
     if (!currentService) return;
-    const url = `https://timely.jollyhomesgh.com/service/${currentService.id}`;
+    const url = `https://timelygh.com/service/${currentService.id}`;
     try {
-      await Share.share({ message: `Check out this service: ${url}` });
+      await Share.share({ message: `Check out my services: ${url}` });
     } catch (error) {
       console.log(error);
     }
@@ -235,7 +239,8 @@ export default function DetailScreen() {
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => {
-              // Navigate to gallery
+              setGalleryIndex(currentImageIndex);
+              setGalleryVisible(true);
             }}
           >
             <Image source={{ uri: item }} style={styles.headerImage} />
@@ -257,11 +262,11 @@ export default function DetailScreen() {
               />
             </TouchableOpacity>
           )}
-          {/*
+         
            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
             <Ionicons name="share-outline" size={24} color="black" />
           </TouchableOpacity>
-          */}
+          
         </View>
         {currentService?.images && currentService.images.length > 1 && (
           <View style={styles.indicatorContainer}>
@@ -429,6 +434,13 @@ export default function DetailScreen() {
         onHide={hideSnackbar}
         duration={3000} // or Infinity if you want to control dismissal manually
       />
+      {galleryVisible && (
+        <GalleryWidget
+          images={currentService?.images}
+          index={galleryIndex}
+          onClose={() => setGalleryVisible(false)}
+        />
+      )}
     </View>
   );
 }

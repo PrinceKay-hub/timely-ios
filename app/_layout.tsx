@@ -16,45 +16,41 @@ import { DeviceEventEmitter } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/NotificationToast';
 import { playNotificationSound, configureAudioSession } from '@/utils/notificationSound';
+import * as Linking from 'expo-linking'; 
+import { useRouter } from 'expo-router';
 
-// ── Run before component mounts ───────────────────────────────────────────────
 SplashScreen.preventAutoHideAsync();
 configureGoogleSignIn();
-
-
 
 export default function RootLayout() {
   const { user } = useAuthStore();
   const { status, downloadAndRestart } = useAppUpdate();
   const [modalDismissed, setModalDismissed] = useState(false);
+  const router = useRouter();
 
-  // ── Hide native splash immediately (custom splash in index.tsx takes over) ─
+
+  // ── Hide splash ───────────────────────────────────────────────────────────
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
 
-  // ── Location + storage — run once regardless of auth state ────────────────
+  // ── Location + storage ────────────────────────────────────────────────────
   useEffect(() => {
     initLocation();
     loadStoredData();
   }, []);
 
-  // ── Notifications — only when user is signed in ───────────────────────────
-  
+  // ── Notifications ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     configureAudioSession();
     initNotifications();
-    // Start Firebase foreground listener
     const unsubscribe = onMessageListener();
 
-    // Listen for notification events and show toast
     const sub = DeviceEventEmitter.addListener(
       'foreground_notification',
       ({ title, body }) => {
-      
         playNotificationSound();
-
         Toast.show({
           type: 'notification',
           text1: title,
@@ -77,7 +73,6 @@ export default function RootLayout() {
       <ThemeProvider>
         <SafeAreaProvider>
           <StatusBar style="auto" />
-
           <Stack>
             <Stack.Screen name="index"                          options={{ headerShown: false }} />
             <Stack.Screen name="(auth)"                         options={{ headerShown: false }} />
@@ -98,14 +93,12 @@ export default function RootLayout() {
             <Stack.Screen name="terms"                          options={{ headerShown: false }} />
           </Stack>
 
-          {/* ── UpdateModal must be OUTSIDE <Stack> to overlay all screens ── */}
           <UpdateModal
             status={status}
             onUpdate={downloadAndRestart}
             onDismiss={() => setModalDismissed(true)}
           />
           <Toast config={toastConfig} />
-
         </SafeAreaProvider>
       </ThemeProvider>
     </AuthProvider>
