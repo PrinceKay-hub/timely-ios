@@ -16,21 +16,20 @@ import { useSelectedLocationStore } from '@/stores/selectedLocationStore';
 
 const PURPLE = '#8B5CF6';
 
+type CoordinateSource = 'gps' | 'approximate' | null;
+
 export const LocationStep = () => {
   const router = useRouter();
   const { currentService, updateServiceField } = useServiceRegistrationStore();
   const { selectedLocation } = useSelectedLocationStore();
   const [isLocating, setIsLocating] = useState(false);
-  const [locationComplete, setLocationComplete] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [coordinateSource, setCoordinateSource] = useState<CoordinateSource>(null);
 
-  // When currentService changes, check if it has valid coordinates
-  useEffect(() => {
-    const hasCoordinates =
-      currentService?.latitude != null &&
-      currentService?.longitude != null &&
-      (currentService.latitude !== 0 || currentService.longitude !== 0);
-    setLocationComplete(hasCoordinates);
-  }, [currentService]);
+  const hasCoordinates =
+    currentService?.latitude != null &&
+    currentService?.longitude != null &&
+    (currentService.latitude !== 0 || currentService.longitude !== 0);
 
   const handleSelectRegion = async () => {
     router.push('/location/regions?isService=true');
@@ -47,7 +46,7 @@ export const LocationStep = () => {
       const loc = await Location.getCurrentPositionAsync({});
       updateServiceField('latitude', loc.coords.latitude);
       updateServiceField('longitude', loc.coords.longitude);
-      setLocationComplete(true);
+      setCoordinateSource('gps');
     } catch (error) {
       Alert.alert('Error', 'Could not get current location');
     } finally {
@@ -55,19 +54,44 @@ export const LocationStep = () => {
     }
   };
 
-  // Parse selectedLocation into region and district
+  // Parse selectedLocation into region and district, then geocode it
+  // as an approximate fallback so the provider doesn't have to be
+  // physically at the premises to register.
   useEffect(() => {
-    if (selectedLocation && selectedLocation !== 'Select Location') {
-      const parts = selectedLocation.split(' - ');
-      if (parts.length === 2) {
-        updateServiceField('region', parts[0]);
-        updateServiceField('district', parts[1]);
-      } else {
-        updateServiceField('region', selectedLocation);
-        updateServiceField('district', '');
-      }
-      updateServiceField('location', selectedLocation);
+    if (!selectedLocation || selectedLocation === 'Select Location') return;
+
+    const parts = selectedLocation.split(' - ');
+    if (parts.length === 2) {
+      updateServiceField('region', parts[0]);
+      updateServiceField('district', parts[1]);
+    } else {
+      updateServiceField('region', selectedLocation);
+      updateServiceField('district', '');
     }
+    updateServiceField('location', selectedLocation);
+
+    // Only auto-geocode if the user hasn't already set a precise GPS pin —
+    // don't clobber a real location with a rough estimate.
+    if (coordinateSource === 'gps') return;
+
+    const geocodeRegion = async () => {
+      setIsGeocoding(true);
+      try {
+        const results = await Location.geocodeAsync(`${selectedLocation}, Ghana`);
+        if (results.length > 0) {
+          updateServiceField('latitude', results[0].latitude);
+          updateServiceField('longitude', results[0].longitude);
+          setCoordinateSource('approximate');
+        }
+      } catch (error) {
+        // Geocoding can fail offline or for obscure district names —
+        // not fatal, the user can still set a precise pin via GPS.
+        console.warn('Geocoding failed for', selectedLocation, error);
+      } finally {
+        setIsGeocoding(false);
+      }
+    };
+    geocodeRegion();
   }, [selectedLocation]);
 
   const handlePhoneChange = (text: string) => {
@@ -117,12 +141,31 @@ export const LocationStep = () => {
             ) : (
               <>
                 <Ionicons name="locate-outline" size={20} color={PURPLE} />
-                <Text style={styles.currentLocText}>Set Shop Location</Text>
+                <Text style={styles.currentLocText}>
+                  {coordinateSource === 'gps' ? 'Update precise location' : "I'm at the premises now"}
+                </Text>
               </>
             )}
           </TouchableOpacity>
-          {locationComplete && <Ionicons name="checkmark-circle" size={24} color="green" />}
+          {isGeocoding && <ActivityIndicator size="small" color={PURPLE} />}
+          {!isGeocoding && hasCoordinates && (
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={coordinateSource === 'gps' ? 'green' : '#F59E0B'}
+            />
+          )}
         </View>
+
+        {hasCoordinates && coordinateSource === 'approximate' && (
+          <View style={styles.approxNote}>
+            <Ionicons name="information-circle-outline" size={16} color="#F59E0B" />
+            <Text style={styles.approxNoteText}>
+              We've set an approximate pin based on your selected area. Tap the
+              button above if you're at the premises to set an exact location.
+            </Text>
+          </View>
+        )}
 
         <Text style={[styles.label, { marginTop: 24 }]}>Phone Number (Don't start with "0")</Text>
         <TextInput
@@ -155,7 +198,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   locationText: { flex: 1, marginLeft: 8, color: '#333' },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 12 },
   currentLocButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -164,9 +207,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginRight: 12,
   },
   currentLocText: { marginLeft: 8, color: PURPLE, fontWeight: '600' },
+  approxNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 16,
+    gap: 6,
+  },
+  approxNoteText: { color: '#B45309', fontSize: 12, flex: 1, lineHeight: 16 },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',

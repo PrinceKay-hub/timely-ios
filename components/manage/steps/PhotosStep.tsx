@@ -21,7 +21,7 @@ interface Props {
 
 export const PhotosStep: React.FC<Props> = ({ userId }) => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
-  const [images, setImages] = useState<string[]>(currentService?.images || []);
+  const images = currentService?.images || [];
   const [modalVisible, setModalVisible] = useState(false);
 
   const requestPermissions = async (forCamera: boolean) => {
@@ -70,7 +70,6 @@ export const PhotosStep: React.FC<Props> = ({ userId }) => {
     if (!result.canceled) {
       const newUris = result.assets.map(a => a.uri);
       const updated = [...images, ...newUris].slice(0, 3);
-      setImages(updated);
       updateServiceField('images', updated);
     }
     setModalVisible(false);
@@ -83,7 +82,6 @@ export const PhotosStep: React.FC<Props> = ({ userId }) => {
         text: 'Remove',
         onPress: () => {
           const updated = images.filter((_, i) => i !== index);
-          setImages(updated);
           updateServiceField('images', updated);
         },
         style: 'destructive',

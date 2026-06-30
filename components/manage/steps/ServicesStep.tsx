@@ -15,9 +15,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
+import { useServiceCatalogStore } from '@/stores/serviceCatalog';
 
 const PURPLE = '#8B5CF6';
 const PURPLE_LIGHT = '#EDE9FE';
@@ -36,6 +35,8 @@ type Step = 'pick' | 'details';
 
 export const ServicesStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
+  const { serviceCatalog, serviceCatalogError, isLoadingServiceCatalog, loadServiceCatalog } =
+    useServiceCatalogStore();
   const services = currentService?.services || [];
   const selectedAmenities = currentService?.amenities || [];
 
@@ -44,42 +45,22 @@ export const ServicesStep = () => {
   const [selectedName, setSelectedName] = useState('');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
-  const [serviceList, setServiceList] = useState<string[]>([]);
   const [filteredServices, setFilteredServices] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loadingServices, setLoadingServices] = useState(true);
 
   const searchRef = useRef<TextInput>(null);
   const priceRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const docRef = doc(db, 'categories', 'serviceList');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.services && Array.isArray(data.services)) {
-            const list = data.services.map((s: any) => String(s));
-            setServiceList(list);
-            setFilteredServices(list);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching services:', error);
-      } finally {
-        setLoadingServices(false);
-      }
-    };
-    fetchServices();
+    loadServiceCatalog();
   }, []);
 
   useEffect(() => {
     const q = searchQuery.toLowerCase().trim();
     setFilteredServices(
-      q === '' ? serviceList : serviceList.filter((s) => s.toLowerCase().includes(q))
+      q === '' ? serviceCatalog : serviceCatalog.filter((s) => s.toLowerCase().includes(q))
     );
-  }, [searchQuery, serviceList]);
+  }, [searchQuery, serviceCatalog]);
 
   const openModal = () => {
     setStep('pick');
@@ -102,13 +83,32 @@ export const ServicesStep = () => {
   };
 
   const handleAddService = () => {
-    if (!price || !duration) {
-      Alert.alert('Incomplete', 'Please enter price and duration');
+    const parsedPrice = parseFloat(price);
+    const parsedDuration = parseInt(duration, 10);
+
+    if (!price.trim() || !duration.trim() || isNaN(parsedPrice) || isNaN(parsedDuration)) {
+      Alert.alert('Incomplete', 'Please enter a valid price and duration');
       return;
     }
+    if (parsedPrice <= 0) {
+      Alert.alert('Invalid price', 'Price must be greater than 0');
+      return;
+    }
+    if (parsedDuration <= 0) {
+      Alert.alert('Invalid duration', 'Duration must be greater than 0 minutes');
+      return;
+    }
+    const isDuplicate = services.some(
+      (s) => s.name.trim().toLowerCase() === selectedName.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      Alert.alert('Already added', `"${selectedName}" is already in your services list`);
+      return;
+    }
+
     updateServiceField('services', [
       ...services,
-      { name: selectedName, price: parseInt(price), duration: parseInt(duration) },
+      { name: selectedName, price: parsedPrice, duration: parsedDuration },
     ]);
     closeModal();
   };
@@ -245,8 +245,10 @@ export const ServicesStep = () => {
                   )}
                 </View>
 
-                {loadingServices ? (
+                {isLoadingServiceCatalog ? (
                   <ActivityIndicator size="small" color={PURPLE} style={{ marginVertical: 32 }} />
+                ) : serviceCatalogError ? (
+                  <Text style={styles.emptyListText}>Couldn't load services. Pull to retry.</Text>
                 ) : (
                   <FlatList
                     data={filteredServices}

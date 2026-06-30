@@ -13,7 +13,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { auth, db } from '@/firebase'; // adjust path as needed
+import { auth, db } from '@/firebase'; 
 import { sendEmailVerification, reload } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'expo-router';

@@ -175,6 +175,8 @@ const fromIndices = (hourIdx: number, minuteIdx: number, periodIdx: number) => {
 
 export const WorkingHoursStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
+  // Safe: ServiceRegistrationForm guarantees currentService is non-null
+  // before rendering any step. Don't render this component outside that shell.
   const service = currentService!;
 
   const [activeTarget, setActiveTarget] = useState<PickerTarget>(null);

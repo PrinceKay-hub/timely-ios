@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Image,
   Animated,
   PanResponder,
   Dimensions,
@@ -15,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 100;
 
 interface GalleryWidgetProps {
@@ -31,25 +30,23 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
   const opacity = useRef(new Animated.Value(1)).current;
   const flatListRef = useRef<FlatList>(null);
 
-  // ── Pan responder for swipe-down-to-dismiss ──────────────────────────────
+  // Pan responder for swipe‑down‑to‑dismiss
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only capture downward vertical drags
         return Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 0;
       },
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy < 0) return; // Block upward drag
+        if (gestureState.dy < 0) return;
         translateY.setValue(gestureState.dy);
-        const newOpacity = (1 - gestureState.dy / 300).clamp(0.4, 1.0);
+        const newOpacity = Math.min(Math.max(1 - gestureState.dy / 300, 0.4), 1);
         opacity.setValue(newOpacity);
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > DISMISS_THRESHOLD) {
           onClose();
         } else {
-          // Snap back
           Animated.parallel([
             Animated.spring(translateY, {
               toValue: 0,
@@ -87,11 +84,7 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
           style={[
             styles.image,
             {
-              transform: [
-                {
-                  rotate: `${rotationAngle}deg`,
-                },
-              ],
+              transform: [{ rotate: `${rotationAngle}deg` }],
             },
           ]}
           resizeMode="contain"
@@ -113,22 +106,19 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
         ]}
         {...panResponder.panHandlers}
       >
-        {/* ── Header ───────────────────────────────────────────────────── */}
         <SafeAreaView edges={['top']} style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton}>
             <Ionicons name="chevron-back" size={24} color="white" />
           </TouchableOpacity>
-
           <Text style={styles.counter}>
             {currentIndex + 1} / {images.length}
           </Text>
-
           <TouchableOpacity onPress={handleRotate} style={styles.headerButton}>
             <Ionicons name="refresh" size={24} color="white" />
           </TouchableOpacity>
         </SafeAreaView>
 
-        {/* ── Image pager ──────────────────────────────────────────────── */}
+        {/* FlatList now takes the remaining space */}
         <FlatList
           ref={flatListRef}
           data={images}
@@ -139,32 +129,23 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={index}
           getItemLayout={(_, i) => ({
-            length: Dimensions.get('window').width,
-            offset: Dimensions.get('window').width * i,
+            length: SCREEN_WIDTH,
+            offset: SCREEN_WIDTH * i,
             index: i,
           })}
           onMomentumScrollEnd={e => {
             const newIndex = Math.round(
-              e.nativeEvent.contentOffset.x / Dimensions.get('window').width
+              e.nativeEvent.contentOffset.x / SCREEN_WIDTH
             );
             setCurrentIndex(newIndex);
-            setRotationAngle(0); // Reset rotation on page change
+            setRotationAngle(0);
           }}
+          style={styles.flatList}
         />
       </Animated.View>
     </View>
   );
 }
-
-// Clamp polyfill for Number
-declare global {
-  interface Number {
-    clamp(min: number, max: number): number;
-  }
-}
-Number.prototype.clamp = function (min: number, max: number): number {
-  return Math.min(Math.max(this as number, min), max);
-};
 
 const styles = StyleSheet.create({
   overlay: {
@@ -192,19 +173,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  flatList: {
+    flex: 1, 
+  },
   imageContainer: {
-    width: Dimensions.get('window').width,
-    height: SCREEN_HEIGHT,
-    backgroundColor: 'black',
+    width: SCREEN_WIDTH,
+    height: '100%', 
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'black',
   },
   zoomable: {
-    width: Dimensions.get('window').width,
-    height: SCREEN_HEIGHT,
+    width: SCREEN_WIDTH,
+    height: '100%', 
   },
   image: {
-    width: Dimensions.get('window').width,
-    height: SCREEN_HEIGHT,
+    width: SCREEN_WIDTH,
+    height: '100%',
   },
 });
