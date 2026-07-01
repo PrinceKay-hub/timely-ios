@@ -3,15 +3,15 @@ import { collection, query, where, orderBy, limit, getDocs } from 'firebase/fire
 import { db } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-// Optional: define a Service type for better type safety
+// Service type for better type safety
 export interface Service {
   id: string;
-  [key: string]: any; // or define specific fields like name, description, etc.
+  [key: string]: any; 
 }
 
 export const getAllServices = async (): Promise<Service[]> => {
   try {
-    const serviceCollection = collection(db, 'services'); // adjust collection name if needed
+    const serviceCollection = collection(db, 'services'); 
     const q = query(
       serviceCollection,
       where('status', '==', 'approved'),

@@ -1,6 +1,6 @@
-// lib/repositories/serviceCatalogRepository.ts
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '@/firebase'; // adjust import to your firebase setup
+import { db } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 const CACHE_KEY = 'serviceCatalog';
