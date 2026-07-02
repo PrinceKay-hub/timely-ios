@@ -18,6 +18,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.timely.booking",
       "associatedDomains": ["applinks:timelygh.com"],
+       "jsEngine": "jsc",
       "entitlements": {
         "aps-environment": "production"
       },
@@ -100,7 +101,6 @@
       "expo-router",
       "expo-av",
       "./plugins/withAPNSToken",
-      "./withFollyFix",
       [
         "expo-splash-screen",
         {
