@@ -28,6 +28,7 @@
         "NSCameraUsageDescription": "This app uses the camera to take photos of your business.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images.",
         "NSLocationWhenInUseUsageDescription": "Timely uses your location to help you find service providers near you and to provide accurate directions to your appointments. If you're a business owner, we also use your location to set your shop address so customers can easily find you.",
+        "NSPhotoLibraryAddUsageDescription": "Timely needs permission to save images to your photo library.",
         "LSApplicationQueriesSchemes": [
           "whatsapp",
           "maps",
@@ -35,11 +36,6 @@
           "googlemaps"
         ],
         "CFBundleURLTypes": [
-          {
-            "CFBundleURLSchemes": [
-              "com.googleusercontent.apps.131563851716-69cb85s7lod35s6915pd9t375qki0osd"
-            ]
-          },
           {
             "CFBundleURLSchemes": [
               "com.googleusercontent.apps.131563851716-69cb85s7lod35s6915pd9t375qki0osd"
