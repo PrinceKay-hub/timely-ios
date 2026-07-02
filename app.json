@@ -18,7 +18,6 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.timely.booking",
       "associatedDomains": ["applinks:timelygh.com"],
-       "jsEngine": "jsc",
       "entitlements": {
         "aps-environment": "production"
       },
@@ -141,8 +140,7 @@
       }
     },
     "updates": {
-      "enabled": false
-      
+      "url": "https://u.expo.dev/c2adce59-e203-429e-aa2d-953045cd854b"
     },
     "runtimeVersion": {
       "policy": "sdkVersion"
