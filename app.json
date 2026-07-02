@@ -140,7 +140,8 @@
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/c2adce59-e203-429e-aa2d-953045cd854b"
+      "enabled": false
+      
     },
     "runtimeVersion": {
       "policy": "sdkVersion"
