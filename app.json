@@ -7,7 +7,7 @@
     "icon": "./assets/images/logo.png",
     "scheme": "timely",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "owner": "princekay",
     "splash": {
       "backgroundColor": "#ffffff",
@@ -100,6 +100,7 @@
       "expo-router",
       "expo-av",
       "./plugins/withAPNSToken",
+      "./withFollyFix",
       [
         "expo-splash-screen",
         {
