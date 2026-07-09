@@ -1,9 +1,7 @@
-// providers/ThemeProvider.tsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
 import { lightTheme, darkTheme } from '../constants/theme';
-
-type ThemeMode = 'light' | 'dark' | 'system';
+import { useThemeStore, ThemeMode } from '../stores/useThemeStore';
 
 interface ThemeContextType {
   theme: typeof lightTheme;
@@ -19,13 +17,23 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export const useTheme = () => useContext(ThemeContext);
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
+  // Read from the persisted Zustand store — this is the single source of
+  // truth for the user's preference. The old local useState meant the
+  // persisted value loaded by storage.ts was never reflected in the UI.
+  const { themeMode, setThemeMode } = useThemeStore();
 
-  const theme = themeMode === 'system'
-    ? systemColorScheme === 'dark' ? darkTheme : lightTheme
-    : themeMode === 'dark' ? darkTheme : lightTheme;
+  const theme =
+    themeMode === 'system'
+      ? systemColorScheme === 'dark'
+        ? darkTheme
+        : lightTheme
+      : themeMode === 'dark'
+      ? darkTheme
+      : lightTheme;
 
   return (
     <ThemeContext.Provider value={{ theme, themeMode, setThemeMode }}>

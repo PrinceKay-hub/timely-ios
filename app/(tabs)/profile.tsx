@@ -20,6 +20,8 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/firebase';
+import { useTheme } from '@/providers/ThemeProvider';
+import { ThemeMode } from '@/stores/useThemeStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProfileScreenProps {
@@ -36,6 +38,63 @@ interface MenuItemConfig {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PURPLE = '#8B5CF6';
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 44;
+
+// ─── Theme Picker ─────────────────────────────────────────────────────────────
+const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: string }[] = [
+  { mode: 'light', label: 'Light', icon: '☀️' },
+  { mode: 'system', label: 'System', icon: '📱' },
+  { mode: 'dark', label: 'Dark', icon: '🌙' },
+];
+
+const ThemePicker: React.FC = () => {
+  const { themeMode, setThemeMode } = useTheme();
+
+  return (
+    <View style={themeStyles.row}>
+      {THEME_OPTIONS.map(({ mode, label, icon }) => {
+        const isSelected = themeMode === mode;
+        return (
+          <TouchableOpacity
+            key={mode}
+            onPress={() => setThemeMode(mode)}
+            style={[themeStyles.option, isSelected && themeStyles.optionSelected]}
+            activeOpacity={0.75}
+          >
+            <Text style={themeStyles.icon}>{icon}</Text>
+            <Text style={[themeStyles.label, isSelected && themeStyles.labelSelected]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
+
+const themeStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  option: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    gap: 4,
+  },
+  optionSelected: {
+    borderColor: PURPLE,
+    backgroundColor: '#F5F3FF',
+  },
+  icon: { fontSize: 20 },
+  label: { fontSize: 12, fontWeight: '500', color: '#6B7280' },
+  labelSelected: { color: PURPLE, fontWeight: '600' },
+});
 
 // ─── Logout Dialog ────────────────────────────────────────────────────────────
 const LogoutDialog: React.FC<{
@@ -332,6 +391,14 @@ export default function Profile({ user }: ProfileScreenProps) {
 
         {/* Menu sections */}
         <View style={styles.menuWrap}>
+          {/* Appearance */}
+          <View style={styles.menuSection}>
+            <Text style={styles.menuSectionTitle}>Appearance</Text>
+            <View style={[styles.menuItem, { paddingVertical: 14 }]}>
+              <ThemePicker />
+            </View>
+          </View>
+          <View style={styles.sectionGap} />
           <MenuSection title="Account Settings" items={accountItems} />
           <View style={styles.sectionGap} />
           <MenuSection title="Support" items={supportItems} />
