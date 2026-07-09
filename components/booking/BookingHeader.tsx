@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookingFormStore } from '@/stores/bookingFormStore';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export const BookingHeader = () => {
   const router = useRouter();
   const providerData = useBookingFormStore((state) => state.providerData);
-  const [imageError, setImageError] = useState(false);
+  const { theme } = useTheme();
+  const colors = theme.colors;
 
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const [imageError, setImageError] = useState(false);
 
   const getImageUrl = (): string | null => {
     const images = providerData.images;
@@ -28,17 +32,20 @@ export const BookingHeader = () => {
 
   return (
     <View>
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-          <Ionicons name="arrow-back" size={24} color="black" />
+      <View style={[styles.topBar, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.iconButton, { backgroundColor: colors.background }]}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Book Appointment</Text>
-        <View style={styles.iconButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={PURPLE} />
+        <Text style={[styles.title, { color: '#fff' }]}>Book Appointment</Text>
+        <View style={[styles.iconButton, { backgroundColor: colors.background }]}>
+          <Ionicons name="ellipsis-horizontal" size={24} color={colors.primary} />
         </View>
       </View>
 
-      <View style={styles.providerCard}>
+      <View style={[styles.providerCard, { backgroundColor: colors.card }]}>
         {imageUrl && !imageError ? (
           <Image
             source={{ uri: imageUrl }}
@@ -46,22 +53,26 @@ export const BookingHeader = () => {
             onError={() => setImageError(true)}
           />
         ) : (
-          <View style={[styles.providerImage, styles.placeholderImage]}>
-            <Text style={styles.placeholderText}>📷</Text>
+          <View style={[styles.providerImage, styles.placeholderImage, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>📷</Text>
           </View>
         )}
         <View style={styles.providerInfo}>
-          <Text style={styles.providerName}>{providerData.name || ''}</Text>
+          <Text style={[styles.providerName, { color: colors.text }]}>{providerData.name || ''}</Text>
           <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={14} color="gray" />
-            <Text style={styles.locationText} numberOfLines={1}>
+            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
               {providerData.location || ''}
             </Text>
           </View>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color="gold" />
-            <Text style={styles.ratingText}>{providerData.rating?.toFixed(1) || '0.0'}</Text>
-            <Text style={styles.reviewCount}>({providerData.totalReviews || 0} reviews)</Text>
+            <Text style={[styles.ratingText, { color: colors.text }]}>
+              {providerData.rating?.toFixed(1) || '0.0'}
+            </Text>
+            <Text style={[styles.reviewCount, { color: colors.textSecondary }]}>
+              ({providerData.totalReviews || 0} reviews)
+            </Text>
           </View>
         </View>
       </View>
@@ -69,86 +80,85 @@ export const BookingHeader = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  topBar: {
-    backgroundColor: PURPLE,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  iconButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-  },
-  title: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  providerCard: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    margin: 20,
-    padding: 16,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  providerImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-  },
-  providerInfo: {
-    flex: 1,
-    marginLeft: 16,
-    justifyContent: 'center',
-  },
-  providerName: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  locationText: {
-    color: 'gray',
-    fontSize: 12,
-    marginLeft: 4,
-    flex: 1,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontWeight: 'bold',
-    marginLeft: 4,
-  },
-  reviewCount: {
-    color: 'gray',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  placeholderImage: {
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    fontSize: 24,
-    color: '#ccc',
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    topBar: {
+      paddingTop: 50,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
+    },
+    iconButton: {
+      borderRadius: 20,
+      padding: 8,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+    providerCard: {
+      flexDirection: 'row',
+      margin: 20,
+      padding: 16,
+      borderRadius: 15,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    providerImage: {
+      width: 80,
+      height: 80,
+      borderRadius: 12,
+    },
+    providerInfo: {
+      flex: 1,
+      marginLeft: 16,
+      justifyContent: 'center',
+    },
+    providerName: {
+      fontWeight: 'bold',
+      fontSize: 16,
+      marginBottom: 4,
+    },
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    locationText: {
+      fontSize: 12,
+      marginLeft: 4,
+      flex: 1,
+    },
+    ratingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    ratingText: {
+      fontWeight: 'bold',
+      marginLeft: 4,
+    },
+    reviewCount: {
+      fontSize: 12,
+      marginLeft: 4,
+    },
+    placeholderImage: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    placeholderText: {
+      fontSize: 24,
+    },
+  });

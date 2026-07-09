@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useBookingFormStore } from '@/stores/bookingFormStore';
 import { ServiceSelection } from './ServiceSelection';
 import { CalendarView } from './CalendarView';
 import { TimeSlots } from './TimeSlots';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export const BookingForm = () => {
   const {
@@ -13,6 +14,11 @@ export const BookingForm = () => {
     selectDate,
     setTimeSlot,
   } = useBookingFormStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const workingDays = providerData?.workingDays || [];
   const workingHours = providerData?.workingHours;
@@ -34,7 +40,7 @@ export const BookingForm = () => {
         selectedDate={selectedDate}
         selectedTime={selectedTimeSlot?.display ?? null}
         onSelectTime={(display, slot) => {
-          setTimeSlot(slot); // store the full slot object
+          setTimeSlot(slot);
         }}
         workingHours={workingHours}
       />
@@ -43,10 +49,13 @@ export const BookingForm = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 12,
+      color: colors.text,
+    },
+  });

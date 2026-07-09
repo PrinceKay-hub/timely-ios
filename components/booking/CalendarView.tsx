@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -11,16 +11,13 @@ import {
   isBefore,
   startOfDay,
 } from 'date-fns';
+import { useTheme } from '@/providers/ThemeProvider';
 
-const PURPLE = '#8B5CF6';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 interface CalendarViewProps {
-  /** Currently selected date (or null) */
   selectedDate: Date | null;
-  /** Callback when a date is selected */
   onSelectDate: (date: Date) => void;
-  /** Array of working day strings (e.g. ['Mon', 'Tue', ...]) */
   workingDays?: string[];
 }
 
@@ -29,18 +26,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onSelectDate,
   workingDays = [],
 }) => {
-  // Internal state for the displayed month
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [currentMonth, setCurrentMonth] = useState(() => selectedDate || new Date());
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Weekday offset (Monday = 0)
   const firstDayIndex = getDay(monthStart) === 0 ? 6 : getDay(monthStart) - 1;
 
-  // Convert working day strings to numbers (1=Monday ... 7=Sunday)
-  const dayMap: Record<string, number> = { Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6, Sun:7 };
+  const dayMap: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
   const workingDayNumbers = workingDays.map((d) => dayMap[d]);
 
   const isWorkingDay = (date: Date) => {
@@ -94,30 +94,28 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   return (
-    <View style={styles.container}>
-      {/* Month navigation */}
+    <View style={[styles.container, { backgroundColor: colors.card || colors.background }]}>
       <View style={styles.monthNav}>
         <TouchableOpacity onPress={handlePrevMonth}>
-          <Ionicons name="chevron-back" size={24} color="black" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.monthTitle}>{format(currentMonth, 'MMMM yyyy')}</Text>
+        <Text style={[styles.monthTitle, { color: colors.text }]}>
+          {format(currentMonth, 'MMMM yyyy')}
+        </Text>
         <TouchableOpacity onPress={handleNextMonth}>
-          <Ionicons name="chevron-forward" size={24} color="black" />
+          <Ionicons name="chevron-forward" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
 
-      {/* Weekday headers */}
       <View style={styles.weekRow}>
         {DAYS.map((day) => (
-          <Text key={day} style={styles.weekDay}>
+          <Text key={day} style={[styles.weekDay, { color: colors.textSecondary }]}>
             {day}
           </Text>
         ))}
       </View>
 
-      {/* Calendar grid */}
       <View style={styles.grid}>
-        {/* Empty cells for days before month start */}
         {Array.from({ length: firstDayIndex }).map((_, i) => (
           <View key={`empty-${i}`} style={styles.dayCell} />
         ))}
@@ -127,21 +125,78 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   );
 };
 
-// Keep the same styles as before (no changes needed)
-const styles = StyleSheet.create({
-  container: { backgroundColor: 'white', borderRadius: 15, padding: 16 },
-  monthNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  monthTitle: { fontSize: 16, fontWeight: 'bold' },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 },
-  weekDay: { fontWeight: 'bold', color: 'gray', fontSize: 12, width: 32, textAlign: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
-  dayInner: { flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
-  selectedDay: { backgroundColor: PURPLE },
-  todayBorder: { borderWidth: 1, borderColor: PURPLE },
-  dayText: { fontSize: 14, color: '#333' },
-  selectedText: { color: 'white', fontWeight: 'bold' },
-  todayText: { color: PURPLE, fontWeight: 'bold' },
-  disabledText: { color: '#ccc' },
-  closedDot: { position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: 3, backgroundColor: 'red' },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      borderRadius: 15,
+      padding: 16,
+    },
+    monthNav: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    monthTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    weekRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 12,
+    },
+    weekDay: {
+      fontWeight: 'bold',
+      fontSize: 12,
+      width: 32,
+      textAlign: 'center',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    dayCell: {
+      width: `${100 / 7}%`,
+      aspectRatio: 1,
+      padding: 2,
+    },
+    dayInner: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 8,
+    },
+    selectedDay: {
+      backgroundColor: colors.primary,
+    },
+    todayBorder: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    dayText: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    selectedText: {
+      color: '#fff',
+      fontWeight: 'bold',
+    },
+    todayText: {
+      color: colors.primary,
+      fontWeight: 'bold',
+    },
+    disabledText: {
+      color: colors.textSecondary || '#ccc',
+    },
+    closedDot: {
+      position: 'absolute',
+      top: 2,
+      right: 2,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.error || 'red',
+    },
+  });

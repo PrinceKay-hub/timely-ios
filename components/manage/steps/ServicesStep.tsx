@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { useServiceCatalogStore } from '@/stores/serviceCatalog';
-
-const PURPLE = '#8B5CF6';
-const PURPLE_LIGHT = '#EDE9FE';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const AMENITIES = [
   'Free WiFi',
@@ -37,6 +35,12 @@ export const ServicesStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
   const { serviceCatalog, serviceCatalogError, isLoadingServiceCatalog, loadServiceCatalog } =
     useServiceCatalogStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const services = currentService?.services || [];
   const selectedAmenities = currentService?.amenities || [];
 
@@ -126,58 +130,86 @@ export const ServicesStep = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Ionicons name="cut-outline" size={60} color={PURPLE} />
-      <Text style={styles.title}>Your Services & Amenities</Text>
-      <Text style={styles.subtitle}>Add the services you offer & amenities available</Text>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      <Ionicons name="cut-outline" size={60} color={colors.primary} />
+      <Text style={[styles.title, { color: colors.text }]}>Your Services & Amenities</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        Add the services you offer & amenities available
+      </Text>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card || colors.background }]}>
         {services.length === 0 ? (
           <View style={styles.emptyServices}>
-            <Ionicons name="add-circle-outline" size={40} color="#ccc" />
-            <Text style={styles.emptyText}>No services added yet</Text>
+            <Ionicons name="add-circle-outline" size={40} color={colors.textSecondary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No services added yet
+            </Text>
           </View>
         ) : (
           <View style={styles.servicesList}>
             {services.map((svc, index) => (
-              <View key={index} style={styles.serviceItem}>
-                <View style={styles.serviceIcon}>
-                  <Ionicons name="cut" size={18} color={PURPLE} />
+              <View key={index} style={[styles.serviceItem, { borderBottomColor: colors.border || '#f5f5f5' }]}>
+                <View style={[styles.serviceIcon, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
+                  <Ionicons name="cut" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{svc.name}</Text>
-                  <Text style={styles.serviceDuration}>{svc.duration} min</Text>
+                  <Text style={[styles.serviceName, { color: colors.text }]}>{svc.name}</Text>
+                  <Text style={[styles.serviceDuration, { color: colors.textSecondary }]}>
+                    {svc.duration} min
+                  </Text>
                 </View>
-                <Text style={styles.servicePrice}>₵{svc.price}</Text>
+                <Text style={[styles.servicePrice, { color: colors.primary }]}>₵{svc.price}</Text>
                 <TouchableOpacity
                   onPress={() => handleDeleteService(index)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#F87171" />
+                  <Ionicons name="trash-outline" size={18} color={colors.error || '#F87171'} />
                 </TouchableOpacity>
               </View>
             ))}
           </View>
         )}
 
-        <TouchableOpacity style={styles.addButton} onPress={openModal}>
-          <Ionicons name="add" size={20} color={PURPLE} />
-          <Text style={styles.addButtonText}>Add Service</Text>
+        <TouchableOpacity
+          style={[
+            styles.addButton,
+            {
+              borderColor: colors.primary,
+              backgroundColor: colors.surface,
+            }
+          ]}
+          onPress={openModal}
+        >
+          <Ionicons name="add" size={20} color={colors.primary} />
+          <Text style={[styles.addButtonText, { color: colors.primary }]}>Add Service</Text>
         </TouchableOpacity>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border || '#f0f0f0' }]} />
 
-        <Text style={styles.label}>Amenities</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Amenities</Text>
         <View style={styles.amenitiesGrid}>
           {AMENITIES.map((amenity) => {
             const selected = selectedAmenities.includes(amenity);
             return (
               <TouchableOpacity
                 key={amenity}
-                style={[styles.amenityChip, selected && styles.amenityChipSelected]}
+                style={[
+                  styles.amenityChip,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.surface,
+                    borderColor: selected ? colors.primary : colors.border || '#eee',
+                  },
+                ]}
                 onPress={() => toggleAmenity(amenity)}
               >
-                <Text style={[styles.amenityText, selected && styles.amenityTextSelected]}>
+                <Text
+                  style={[
+                    styles.amenityText,
+                    {
+                      color: selected ? '#fff' : colors.textSecondary,
+                    },
+                  ]}
+                >
                   {amenity}
                 </Text>
               </TouchableOpacity>
@@ -196,28 +228,45 @@ export const ServicesStep = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.sheetWrapper}
         >
-          <View style={styles.sheet}>
+          <View style={[styles.sheet, { backgroundColor: colors.card || colors.background }]}>
             {/* Handle */}
-            <View style={styles.handle} />
+            <View style={[styles.handle, { backgroundColor: colors.border || '#E5E7EB' }]} />
 
             {/* ── Step indicator ── */}
             <View style={styles.stepRow}>
               <View style={styles.stepItem}>
-                <View style={[styles.stepDot, styles.stepDotActive]}>
+                <View style={[styles.stepDot, { backgroundColor: colors.primary }]}>
                   <Text style={styles.stepDotText}>1</Text>
                 </View>
-                <Text style={[styles.stepLabel, step === 'pick' && styles.stepLabelActive]}>
+                <Text style={[
+                  styles.stepLabel,
+                  { color: step === 'pick' ? colors.primary : colors.textSecondary },
+                  step === 'pick' && styles.stepLabelActive
+                ]}>
                   Choose Service
                 </Text>
               </View>
-              <View style={[styles.stepLine, step === 'details' && styles.stepLineActive]} />
+              <View style={[
+                styles.stepLine,
+                { backgroundColor: step === 'details' ? colors.primary : colors.border || '#E5E7EB' }
+              ]} />
               <View style={styles.stepItem}>
-                <View style={[styles.stepDot, step === 'details' && styles.stepDotActive]}>
-                  <Text style={[styles.stepDotText, step !== 'details' && styles.stepDotTextInactive]}>
+                <View style={[
+                  styles.stepDot,
+                  { backgroundColor: step === 'details' ? colors.primary : colors.border || '#E5E7EB' }
+                ]}>
+                  <Text style={[
+                    styles.stepDotText,
+                    step !== 'details' && { color: colors.textSecondary || '#999' }
+                  ]}>
                     2
                   </Text>
                 </View>
-                <Text style={[styles.stepLabel, step === 'details' && styles.stepLabelActive]}>
+                <Text style={[
+                  styles.stepLabel,
+                  { color: step === 'details' ? colors.primary : colors.textSecondary },
+                  step === 'details' && styles.stepLabelActive
+                ]}>
                   Set Price & Time
                 </Text>
               </View>
@@ -226,29 +275,30 @@ export const ServicesStep = () => {
             {/* ── Step 1: Pick service ── */}
             {step === 'pick' && (
               <View style={styles.stepContent}>
-                {/* Search bar */}
-                <View style={styles.searchBar}>
-                  <Ionicons name="search" size={18} color="#999" style={{ marginRight: 8 }} />
+                <View style={[styles.searchBar, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="search" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
                   <TextInput
                     ref={searchRef}
-                    style={styles.searchInput}
+                    style={[styles.searchInput, { color: colors.text }]}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     placeholder="Search services…"
-                    placeholderTextColor="#bbb"
+                    placeholderTextColor={colors.textSecondary}
                     returnKeyType="search"
                   />
                   {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
-                      <Ionicons name="close-circle" size={18} color="#bbb" />
+                      <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
                     </TouchableOpacity>
                   )}
                 </View>
 
                 {isLoadingServiceCatalog ? (
-                  <ActivityIndicator size="small" color={PURPLE} style={{ marginVertical: 32 }} />
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 32 }} />
                 ) : serviceCatalogError ? (
-                  <Text style={styles.emptyListText}>Couldn't load services. Pull to retry.</Text>
+                  <Text style={[styles.emptyListText, { color: colors.textSecondary }]}>
+                    Couldn't load services. Pull to retry.
+                  </Text>
                 ) : (
                   <FlatList
                     data={filteredServices}
@@ -257,16 +307,18 @@ export const ServicesStep = () => {
                     style={styles.list}
                     renderItem={({ item }) => (
                       <TouchableOpacity
-                        style={styles.listItem}
+                        style={[styles.listItem, { borderBottomColor: colors.border || '#F5F5F7' }]}
                         onPress={() => handleSelectService(item)}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.listItemText}>{item}</Text>
-                        <Ionicons name="chevron-forward" size={18} color="#ccc" />
+                        <Text style={[styles.listItemText, { color: colors.text }]}>{item}</Text>
+                        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
                       </TouchableOpacity>
                     )}
                     ListEmptyComponent={
-                      <Text style={styles.emptyListText}>No services found</Text>
+                      <Text style={[styles.emptyListText, { color: colors.textSecondary }]}>
+                        No services found
+                      </Text>
                     }
                   />
                 )}
@@ -276,56 +328,54 @@ export const ServicesStep = () => {
             {/* ── Step 2: Price & duration ── */}
             {step === 'details' && (
               <View style={styles.stepContent}>
-                {/* Selected service badge */}
-                <View style={styles.selectedBadge}>
-                  <View style={styles.selectedBadgeIcon}>
-                    <Ionicons name="cut" size={16} color={PURPLE} />
+                <View style={[styles.selectedBadge, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
+                  <View style={[styles.selectedBadgeIcon, { backgroundColor: colors.background }]}>
+                    <Ionicons name="cut" size={16} color={colors.primary} />
                   </View>
-                  <Text style={styles.selectedBadgeName} numberOfLines={1}>
+                  <Text style={[styles.selectedBadgeName, { color: colors.text }]} numberOfLines={1}>
                     {selectedName}
                   </Text>
                   <TouchableOpacity onPress={() => setStep('pick')}>
-                    <Text style={styles.changeText}>Change</Text>
+                    <Text style={[styles.changeText, { color: colors.primary }]}>Change</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Price */}
-                <Text style={styles.fieldLabel}>Price (₵)</Text>
-                <View style={styles.inputRow}>
-                  <Text style={styles.inputPrefix}>₵</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Price (₵)</Text>
+                <View style={[styles.inputRow, { backgroundColor: colors.surface }]}>
+                  <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
                   <TextInput
                     ref={priceRef}
-                    style={styles.fieldInput}
+                    style={[styles.fieldInput, { color: colors.text }]}
                     value={price}
                     onChangeText={setPrice}
                     keyboardType="numeric"
                     placeholder="0"
-                    placeholderTextColor="#ccc"
+                    placeholderTextColor={colors.textSecondary}
                     returnKeyType="next"
-                    onSubmitEditing={() => {}}
                   />
                 </View>
 
-                {/* Duration */}
-                <Text style={styles.fieldLabel}>Duration</Text>
-                <View style={styles.inputRow}>
-                  <Ionicons name="time-outline" size={18} color="#999" style={{ marginLeft: 14 }} />
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Duration</Text>
+                <View style={[styles.inputRow, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="time-outline" size={18} color={colors.textSecondary} style={{ marginLeft: 14 }} />
                   <TextInput
-                    style={styles.fieldInput}
+                    style={[styles.fieldInput, { color: colors.text }]}
                     value={duration}
                     onChangeText={setDuration}
                     keyboardType="numeric"
                     placeholder="0"
-                    placeholderTextColor="#ccc"
+                    placeholderTextColor={colors.textSecondary}
                     returnKeyType="done"
                     onSubmitEditing={handleAddService}
                   />
-                  <Text style={styles.inputSuffix}>min</Text>
+                  <Text style={[styles.inputSuffix, { color: colors.textSecondary }]}>min</Text>
                 </View>
 
-                {/* Confirm */}
-                <TouchableOpacity style={styles.confirmButton} onPress={handleAddService}>
-                  <Ionicons name="add-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                <TouchableOpacity
+                  style={[styles.confirmButton, { backgroundColor: colors.primary }]}
+                  onPress={handleAddService}
+                >
+                  <Ionicons name="add-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
                   <Text style={styles.confirmButtonText}>Add Service</Text>
                 </TouchableOpacity>
               </View>
@@ -337,186 +387,165 @@ export const ServicesStep = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  title: { fontSize: 28, fontWeight: 'bold', marginTop: 16, marginBottom: 8 },
-  subtitle: { color: 'gray', fontSize: 16, marginBottom: 24 },
-  card: { backgroundColor: 'white', borderRadius: 15, padding: 16 },
-  emptyServices: { alignItems: 'center', padding: 20 },
-  emptyText: { color: 'gray', marginTop: 8 },
-  servicesList: { marginBottom: 16 },
-  serviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
-  },
-  serviceIcon: {
-    backgroundColor: PURPLE_LIGHT,
-    padding: 8,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  serviceInfo: { flex: 1 },
-  serviceName: { fontWeight: '600', fontSize: 15 },
-  serviceDuration: { color: '#aaa', fontSize: 12, marginTop: 2 },
-  servicePrice: { fontWeight: '700', color: PURPLE, marginRight: 14, fontSize: 15 },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: PURPLE,
-    borderRadius: 12,
-    borderStyle: 'dashed',
-  },
-  addButtonText: { color: PURPLE, fontWeight: '600', marginLeft: 6 },
-  divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 20 },
-  label: { fontWeight: '600', fontSize: 14, marginBottom: 12 },
-  amenitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  amenityChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  amenityChipSelected: { backgroundColor: PURPLE, borderColor: PURPLE },
-  amenityText: { color: '#555', fontWeight: '500', fontSize: 13 },
-  amenityTextSelected: { color: 'white' },
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, paddingHorizontal: 20 },
+    title: { fontSize: 28, fontWeight: 'bold', marginTop: 16, marginBottom: 8 },
+    subtitle: { fontSize: 16, marginBottom: 24 },
+    card: { borderRadius: 15, padding: 16 },
+    emptyServices: { alignItems: 'center', padding: 20 },
+    emptyText: { marginTop: 8 },
+    servicesList: { marginBottom: 16 },
+    serviceItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+    },
+    serviceIcon: {
+      padding: 8,
+      borderRadius: 8,
+      marginRight: 12,
+    },
+    serviceInfo: { flex: 1 },
+    serviceName: { fontWeight: '600', fontSize: 15 },
+    serviceDuration: { fontSize: 12, marginTop: 2 },
+    servicePrice: { fontWeight: '700', marginRight: 14, fontSize: 15 },
+    addButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 8,
+      padding: 14,
+      borderWidth: 1.5,
+      borderRadius: 12,
+      borderStyle: 'dashed',
+    },
+    addButtonText: { fontWeight: '600', marginLeft: 6 },
+    divider: { height: 1, marginVertical: 20 },
+    label: { fontWeight: '600', fontSize: 14, marginBottom: 12 },
+    amenitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    amenityChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    amenityText: { fontWeight: '500', fontSize: 13 },
 
-  // Modal
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheetWrapper: { justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
-    minHeight: 480,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E5E7EB',
-    marginTop: 12,
-    marginBottom: 20,
-  },
+    // Modal
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+    sheetWrapper: { justifyContent: 'flex-end' },
+    sheet: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+      minHeight: 480,
+    },
+    handle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      marginTop: 12,
+      marginBottom: 20,
+    },
 
-  // Step indicator
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    marginBottom: 20,
-  },
-  stepItem: { alignItems: 'center', gap: 6 },
-  stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: PURPLE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepDotActive: { backgroundColor: PURPLE },
-  stepDotText: { color: 'white', fontSize: 13, fontWeight: '700' },
-  stepDotTextInactive: { color: 'white', opacity: 0.4 },
-  stepLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 8,
-    marginBottom: 20,
-  },
-  stepLineActive: { backgroundColor: PURPLE },
-  stepLabel: { fontSize: 11, color: '#aaa', fontWeight: '500' },
-  stepLabelActive: { color: PURPLE, fontWeight: '700' },
+    // Step indicator
+    stepRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+      marginBottom: 20,
+    },
+    stepItem: { alignItems: 'center', gap: 6 },
+    stepDot: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepDotText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    stepLine: {
+      flex: 1,
+      height: 2,
+      marginHorizontal: 8,
+      marginBottom: 20,
+    },
+    stepLabel: { fontSize: 11, fontWeight: '500' },
+    stepLabelActive: { fontWeight: '700' },
 
-  stepContent: { paddingHorizontal: 20 },
+    stepContent: { paddingHorizontal: 20 },
 
-  // Step 1
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F7',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: '#111' },
-  list: { maxHeight: 300 },
-  listItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F7',
-  },
-  listItemText: { fontSize: 15, color: '#222' },
-  emptyListText: { textAlign: 'center', color: '#bbb', paddingVertical: 24, fontSize: 14 },
+    // Step 1
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      marginBottom: 12,
+    },
+    searchInput: { flex: 1, fontSize: 15 },
+    list: { maxHeight: 300 },
+    listItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 4,
+      borderBottomWidth: 1,
+    },
+    listItemText: { fontSize: 15 },
+    emptyListText: { textAlign: 'center', paddingVertical: 24, fontSize: 14 },
 
-  // Step 2
-  selectedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: PURPLE_LIGHT,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 24,
-    gap: 10,
-  },
-  selectedBadgeIcon: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 6,
-  },
-  selectedBadgeName: { flex: 1, fontWeight: '700', color: '#1a1a1a', fontSize: 15 },
-  changeText: { color: PURPLE, fontWeight: '600', fontSize: 13 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 8 },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F7',
-    borderRadius: 14,
-    marginBottom: 20,
-    overflow: 'hidden',
-  },
-  inputPrefix: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#555',
-    paddingHorizontal: 14,
-  },
-  inputSuffix: {
-    fontSize: 14,
-    color: '#aaa',
-    paddingHorizontal: 14,
-  },
-  fieldInput: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#111',
-    paddingVertical: 14,
-  },
-  confirmButton: {
-    flexDirection: 'row',
-    backgroundColor: PURPLE,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  confirmButtonText: { color: 'white', fontWeight: '700', fontSize: 16 },
-});
+    // Step 2
+    selectedBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 24,
+      gap: 10,
+    },
+    selectedBadgeIcon: {
+      borderRadius: 8,
+      padding: 6,
+    },
+    selectedBadgeName: { flex: 1, fontWeight: '700', fontSize: 15 },
+    changeText: { fontWeight: '600', fontSize: 13 },
+    fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 14,
+      marginBottom: 20,
+      overflow: 'hidden',
+    },
+    inputPrefix: {
+      fontSize: 17,
+      fontWeight: '600',
+      paddingHorizontal: 14,
+    },
+    inputSuffix: {
+      fontSize: 14,
+      paddingHorizontal: 14,
+    },
+    fieldInput: {
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '600',
+      paddingVertical: 14,
+    },
+    confirmButton: {
+      flexDirection: 'row',
+      borderRadius: 16,
+      padding: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 8,
+    },
+    confirmButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  });

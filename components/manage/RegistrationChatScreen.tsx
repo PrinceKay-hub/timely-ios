@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,103 +14,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useRegistrationChat, ExtractedRegistration } from '@/hooks/useRegistrationChat';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface Props {
   categoryNames: string[];
   onProfileExtracted: (profile: ExtractedRegistration) => void;
 }
 
-export const RegistrationChatScreen: React.FC<Props> = ({
-  categoryNames,
-  onProfileExtracted,
-}) => {
-  const headerHeight = useHeaderHeight();
-  const [isHandingOff, setIsHandingOff] = useState(false);
-  const { messages, isLoading, isComplete, sendMessage } = useRegistrationChat(
-    categoryNames,
-    (profile) => {
-      // Brief pause so the user actually sees the closing message
-      // before the screen transitions away.
-      setIsHandingOff(true);
-      setTimeout(() => onProfileExtracted(profile), 1200);
-    }
-  );
-  const [input, setInput] = useState('');
-  const listRef = useRef<FlatList>(null);
-
-  const handleSend = () => {
-    if (!input.trim() || isLoading || isComplete) return;
-    sendMessage(input);
-    setInput('');
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-  };
-
-  const displayData = isLoading && !isHandingOff
-    ? [...messages, { role: 'assistant' as const, text: '__typing__' }]
-    : messages;
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
-    >
-      <FlatList
-        ref={listRef}
-        data={displayData}
-        keyExtractor={(_, index) => index.toString()}
-        contentContainerStyle={styles.messageList}
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        renderItem={({ item }) => {
-          if (item.text === '__typing__') {
-            return (
-              <View style={[styles.bubble, styles.bubbleAssistant, styles.typingBubble]}>
-                <TypingDots />
-              </View>
-            );
-          }
-          const isUser = item.role === 'user';
-          return (
-            <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
-              <Text style={isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant}>
-                {item.text}
-              </Text>
-            </View>
-          );
-        }}
-      />
-
-      {isHandingOff ? (
-        <View style={styles.handoffRow}>
-          <ActivityIndicator size="small" color={PURPLE} />
-          <Text style={styles.handoffText}>Setting up your profile...</Text>
-        </View>
-      ) : (
-        !isComplete && (
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              value={input}
-              onChangeText={setInput}
-              placeholder="Type your answer..."
-              placeholderTextColor="#999"
-              editable={!isLoading}
-              multiline
-              blurOnSubmit={false}
-            />
-            <TouchableOpacity onPress={handleSend} disabled={isLoading} style={styles.sendButton}>
-              <Ionicons name="send" size={20} color={isLoading ? '#ccc' : PURPLE} />
-            </TouchableOpacity>
-          </View>
-        )
-      )}
-    </KeyboardAvoidingView>
-  );
-};
-
-const TypingDots: React.FC = () => {
+// ─── TypingDots ────────────────────────────────────────────────────────────
+const TypingDots: React.FC<{ color: string }> = ({ color }) => {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -141,34 +53,132 @@ const TypingDots: React.FC = () => {
 
   return (
     <View style={styles.typingDotsRow}>
-      <Animated.View style={[styles.typingDot, dotStyle(dot1)]} />
-      <Animated.View style={[styles.typingDot, dotStyle(dot2)]} />
-      <Animated.View style={[styles.typingDot, dotStyle(dot3)]} />
+      <Animated.View style={[styles.typingDot, dotStyle(dot1), { backgroundColor: color }]} />
+      <Animated.View style={[styles.typingDot, dotStyle(dot2), { backgroundColor: color }]} />
+      <Animated.View style={[styles.typingDot, dotStyle(dot3), { backgroundColor: color }]} />
     </View>
   );
 };
 
+// ─── Main Component ──────────────────────────────────────────────────────
+export const RegistrationChatScreen: React.FC<Props> = ({
+  categoryNames,
+  onProfileExtracted,
+}) => {
+  const headerHeight = useHeaderHeight();
+  const [isHandingOff, setIsHandingOff] = useState(false);
+  const { messages, isLoading, isComplete, sendMessage } = useRegistrationChat(
+    categoryNames,
+    (profile) => {
+      setIsHandingOff(true);
+      setTimeout(() => onProfileExtracted(profile), 1200);
+    }
+  );
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Dynamic styles
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
+
+  const [input, setInput] = useState('');
+  const listRef = useRef<FlatList>(null);
+
+  const handleSend = () => {
+    if (!input.trim() || isLoading || isComplete) return;
+    sendMessage(input);
+    setInput('');
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const displayData = isLoading && !isHandingOff
+    ? [...messages, { role: 'assistant' as const, text: '__typing__' }]
+    : messages;
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+    >
+      <FlatList
+        ref={listRef}
+        data={displayData}
+        keyExtractor={(_, index) => index.toString()}
+        contentContainerStyle={styles.messageList}
+        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+        renderItem={({ item }) => {
+          if (item.text === '__typing__') {
+            return (
+              <View style={[dynamicStyles.bubbleAssistant, styles.typingBubble]}>
+                <TypingDots color={colors.primary} />
+              </View>
+            );
+          }
+          const isUser = item.role === 'user';
+          return (
+            <View style={isUser ? dynamicStyles.bubbleUser : dynamicStyles.bubbleAssistant}>
+              <Text style={isUser ? dynamicStyles.bubbleTextUser : dynamicStyles.bubbleTextAssistant}>
+                {item.text}
+              </Text>
+            </View>
+          );
+        }}
+      />
+
+      {isHandingOff ? (
+        <View style={styles.handoffRow}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[styles.handoffText, { color: colors.primary }]}>
+            Setting up your profile...
+          </Text>
+        </View>
+      ) : (
+        !isComplete && (
+          <View style={[styles.inputRow, { borderTopColor: colors.border || '#eee' }]}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surface,
+                  color: colors.text,
+                }
+              ]}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Type your answer..."
+              placeholderTextColor={colors.textSecondary || '#999'}
+              editable={!isLoading}
+              multiline
+              blurOnSubmit={false}
+            />
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={isLoading}
+              style={styles.sendButton}
+            >
+              <Ionicons
+                name="send"
+                size={20}
+                color={isLoading ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+        )
+      )}
+    </KeyboardAvoidingView>
+  );
+};
+
+// ─── Static styles (layout only) ────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
+  container: { flex: 1 },
   messageList: { padding: 16 },
-  bubble: {
-    maxWidth: '78%',
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginVertical: 6,
-  },
-  bubbleUser: { backgroundColor: PURPLE, alignSelf: 'flex-end' },
-  bubbleAssistant: { backgroundColor: '#F1F1F4', alignSelf: 'flex-start' },
-  bubbleTextUser: { color: 'white', fontSize: 15, lineHeight: 21 },
-  bubbleTextAssistant: { color: '#1a1a1a', fontSize: 15, lineHeight: 21 },
   typingBubble: { paddingVertical: 14, paddingHorizontal: 16 },
   typingDotsRow: { flexDirection: 'row', gap: 4 },
   typingDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: PURPLE,
   },
   handoffRow: {
     flexDirection: 'row',
@@ -177,18 +187,16 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     gap: 8,
   },
-  handoffText: { color: PURPLE, fontSize: 14, fontWeight: '500' },
+  handoffText: { fontSize: 14, fontWeight: '500' },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
   },
   input: {
     flex: 1,
-    backgroundColor: '#F1F1F4',
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -197,3 +205,36 @@ const styles = StyleSheet.create({
   },
   sendButton: { marginLeft: 8, padding: 8, paddingBottom: 10 },
 });
+
+// ─── Dynamic styles factory ─────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    bubbleUser: {
+      backgroundColor: colors.primary,
+      alignSelf: 'flex-end',
+      maxWidth: '78%',
+      borderRadius: 16,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      marginVertical: 6,
+    },
+    bubbleAssistant: {
+      backgroundColor: colors.surface || '#F1F1F4',
+      alignSelf: 'flex-start',
+      maxWidth: '78%',
+      borderRadius: 16,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      marginVertical: 6,
+    },
+    bubbleTextUser: {
+      color: '#fff',
+      fontSize: 15,
+      lineHeight: 21,
+    },
+    bubbleTextAssistant: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 21,
+    },
+  });

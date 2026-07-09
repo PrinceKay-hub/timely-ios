@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 100;
@@ -29,6 +30,11 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
   const flatListRef = useRef<FlatList>(null);
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Pan responder for swipe‑down‑to‑dismiss
   const panResponder = useRef(
@@ -108,17 +114,16 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
       >
         <SafeAreaView edges={['top']} style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={24} color="white" />
+            <Ionicons name="chevron-back" size={24} color={colors.text || '#fff'} />
           </TouchableOpacity>
-          <Text style={styles.counter}>
+          <Text style={[styles.counter, { color: colors.text || '#fff' }]}>
             {currentIndex + 1} / {images.length}
           </Text>
           <TouchableOpacity onPress={handleRotate} style={styles.headerButton}>
-            <Ionicons name="refresh" size={24} color="white" />
+            <Ionicons name="refresh" size={24} color={colors.primary} />
           </TouchableOpacity>
         </SafeAreaView>
 
-        {/* FlatList now takes the remaining space */}
         <FlatList
           ref={flatListRef}
           data={images}
@@ -147,48 +152,49 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'black',
-    zIndex: 999,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'black',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-  headerButton: {
-    padding: 8,
-  },
-  counter: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  flatList: {
-    flex: 1, 
-  },
-  imageContainer: {
-    width: SCREEN_WIDTH,
-    height: '100%', 
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'black',
-  },
-  zoomable: {
-    width: SCREEN_WIDTH,
-    height: '100%', 
-  },
-  image: {
-    width: SCREEN_WIDTH,
-    height: '100%',
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'black',
+      zIndex: 999,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: 'black',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: 'black',
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+    },
+    headerButton: {
+      padding: 8,
+    },
+    counter: {
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    flatList: {
+      flex: 1,
+    },
+    imageContainer: {
+      width: SCREEN_WIDTH,
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'black',
+    },
+    zoomable: {
+      width: SCREEN_WIDTH,
+      height: '100%',
+    },
+    image: {
+      width: SCREEN_WIDTH,
+      height: '100%',
+    },
+  });

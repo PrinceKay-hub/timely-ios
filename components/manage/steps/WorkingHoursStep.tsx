@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
+import { useTheme } from '@/providers/ThemeProvider';
 
-const PURPLE = '#8B5CF6';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const ITEM_HEIGHT = 52;
 const VISIBLE_ITEMS = 5;
@@ -25,24 +25,31 @@ const PERIODS = ['AM', 'PM'];
 
 type PickerTarget = 'start' | 'end' | null;
 
-// ─── WheelPicker ─────────────────────────────────────────────────────────────
+// ─── WheelPicker (themed) ────────────────────────────────────────────────────
 
 interface WheelPickerProps {
   items: string[];
   selectedIndex: number;
   onSelect: (index: number) => void;
   width?: number;
+  colors: any;
 }
 
-const WheelPicker: React.FC<WheelPickerProps> = ({ items, selectedIndex, onSelect, width = 70 }) => {
+const WheelPicker: React.FC<WheelPickerProps> = ({
+  items,
+  selectedIndex,
+  onSelect,
+  width = 70,
+  colors,
+}) => {
   const scrollRef = useRef<ScrollView>(null);
-  // Track current snapped index in a ref to avoid stale closures
   const currentIndex = useRef(selectedIndex);
-  // Prevent snap() from firing twice (momentum + drag end race)
   const isSnapping = useRef(false);
 
+  // Dynamic styles for the wheel picker
+  const wheelStyles = useMemo(() => createWheelStyles(colors), [colors]);
+
   React.useEffect(() => {
-    // Scroll to initial position once mounted
     const timer = setTimeout(() => {
       scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: false });
     }, 80);
@@ -57,7 +64,6 @@ const WheelPicker: React.FC<WheelPickerProps> = ({ items, selectedIndex, onSelec
       const raw = offsetY / ITEM_HEIGHT;
       const index = Math.max(0, Math.min(Math.round(raw), items.length - 1));
 
-      // Only scroll + notify if index actually changed
       if (index !== currentIndex.current) {
         currentIndex.current = index;
         onSelect(index);
@@ -65,7 +71,6 @@ const WheelPicker: React.FC<WheelPickerProps> = ({ items, selectedIndex, onSelec
 
       scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
 
-      // Release lock after animation settles (~300 ms)
       setTimeout(() => {
         isSnapping.current = false;
       }, 350);
@@ -81,11 +86,8 @@ const WheelPicker: React.FC<WheelPickerProps> = ({ items, selectedIndex, onSelec
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
         scrollEventThrottle={16}
-        // Use ONLY onMomentumScrollEnd for free-flick scrolling
         onMomentumScrollEnd={(e) => snap(e.nativeEvent.contentOffset.y)}
-        // Use onScrollEndDrag only when the user lifts finger without momentum
         onScrollEndDrag={(e) => {
-          // If velocity is effectively zero, momentum won't fire — snap manually
           const vy = (e.nativeEvent as any).velocity?.y ?? 0;
           if (Math.abs(vy) < 0.1) {
             snap(e.nativeEvent.contentOffset.y);
@@ -106,7 +108,12 @@ const WheelPicker: React.FC<WheelPickerProps> = ({ items, selectedIndex, onSelec
                 scrollRef.current?.scrollTo({ y: i * ITEM_HEIGHT, animated: true });
               }}
             >
-              <Text style={[wheelStyles.itemText, isSelected && wheelStyles.itemTextSelected]}>
+              <Text
+                style={[
+                  wheelStyles.itemText,
+                  isSelected && wheelStyles.itemTextSelected,
+                ]}
+              >
                 {item}
               </Text>
             </TouchableOpacity>
@@ -114,41 +121,40 @@ const WheelPicker: React.FC<WheelPickerProps> = ({ items, selectedIndex, onSelec
         })}
       </ScrollView>
 
-      {/* Selection highlight — pointer-events none so scroll still works */}
       <View pointerEvents="none" style={wheelStyles.selectionBand} />
-
-      {/* Fade gradients top & bottom for depth */}
       <View pointerEvents="none" style={[wheelStyles.fade, wheelStyles.fadeTop]} />
       <View pointerEvents="none" style={[wheelStyles.fade, wheelStyles.fadeBottom]} />
     </View>
   );
 };
 
-const wheelStyles = StyleSheet.create({
-  container: { height: PICKER_HEIGHT, overflow: 'hidden', position: 'relative' },
-  item: { height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' },
-  itemText: { fontSize: 20, color: '#BCBCC8', fontWeight: '400' },
-  itemTextSelected: { fontSize: 26, color: '#111', fontWeight: '700' },
-  selectionBand: {
-    position: 'absolute',
-    top: ITEM_HEIGHT * 2,
-    left: 6,
-    right: 6,
-    height: ITEM_HEIGHT,
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderColor: PURPLE,
-    borderRadius: 6,
-  },
-  fade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT * 1.8,
-  },
-  fadeTop: { top: 0, backgroundColor: 'transparent' },
-  fadeBottom: { bottom: 0, backgroundColor: 'transparent' },
-});
+// ─── Wheel styles factory ──────────────────────────────────────────────────
+const createWheelStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { height: PICKER_HEIGHT, overflow: 'hidden', position: 'relative' },
+    item: { height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' },
+    itemText: { fontSize: 20, color: colors.textSecondary || '#BCBCC8', fontWeight: '400' },
+    itemTextSelected: { fontSize: 26, color: colors.text, fontWeight: '700' },
+    selectionBand: {
+      position: 'absolute',
+      top: ITEM_HEIGHT * 2,
+      left: 6,
+      right: 6,
+      height: ITEM_HEIGHT,
+      borderTopWidth: 1.5,
+      borderBottomWidth: 1.5,
+      borderColor: colors.primary,
+      borderRadius: 6,
+    },
+    fade: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      height: ITEM_HEIGHT * 1.8,
+    },
+    fadeTop: { top: 0, backgroundColor: 'transparent' },
+    fadeBottom: { bottom: 0, backgroundColor: 'transparent' },
+  });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -175,8 +181,12 @@ const fromIndices = (hourIdx: number, minuteIdx: number, periodIdx: number) => {
 
 export const WorkingHoursStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
-  // Safe: ServiceRegistrationForm guarantees currentService is non-null
-  // before rendering any step. Don't render this component outside that shell.
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Dynamic styles for the main component
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const service = currentService!;
 
   const [activeTarget, setActiveTarget] = useState<PickerTarget>(null);
@@ -242,50 +252,65 @@ export const WorkingHoursStep = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Ionicons name="time-outline" size={60} color={PURPLE} />
-      <Text style={styles.title}>Working Hours</Text>
-      <Text style={styles.subtitle}>When are you available for appointments?</Text>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      <Ionicons name="time-outline" size={60} color={colors.primary} />
+      <Text style={[styles.title, { color: colors.text }]}>Working Hours</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        When are you available for appointments?
+      </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Working Days</Text>
+      <View style={[styles.card, { backgroundColor: colors.card || colors.background }]}>
+        <Text style={[styles.label, { color: colors.text }]}>Working Days</Text>
         <View style={styles.daysRow}>
           {DAYS.map((day) => {
             const selected = service.workingDays?.includes(day) || false;
             return (
               <TouchableOpacity
                 key={day}
-                style={[styles.dayChip, selected && styles.dayChipSelected]}
+                style={[
+                  styles.dayChip,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.surface,
+                    borderColor: selected ? colors.primary : colors.border || '#eee',
+                  },
+                ]}
                 onPress={() => toggleDay(day)}
               >
-                <Text style={[styles.dayText, selected && styles.dayTextSelected]}>{day}</Text>
+                <Text
+                  style={[
+                    styles.dayText,
+                    { color: selected ? '#fff' : colors.textSecondary },
+                  ]}
+                >
+                  {day}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={[styles.label, { marginTop: 24 }]}>Operating Hours</Text>
+        <Text style={[styles.label, { color: colors.text, marginTop: 24 }]}>Operating Hours</Text>
         <View style={styles.timeRow}>
           <TouchableOpacity
-            style={styles.timeBox}
+            style={[styles.timeBox, { backgroundColor: colors.surface }]}
             onPress={() => (Platform.OS === 'ios' ? openPicker('start') : openAndroid('start'))}
             activeOpacity={0.7}
           >
-            <Text style={styles.timeLabel}>Start Time</Text>
-            <Text style={styles.timeValue}>
+            <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Start Time</Text>
+            <Text style={[styles.timeValue, { color: colors.text }]}>
               {formatTime(service.workingHours.startHour, service.workingHours.startMinute)}
             </Text>
           </TouchableOpacity>
 
-          <Ionicons name="arrow-forward" size={20} color="#999" style={{ marginHorizontal: 10 }} />
+          <Ionicons name="arrow-forward" size={20} color={colors.textSecondary} style={{ marginHorizontal: 10 }} />
 
           <TouchableOpacity
-            style={styles.timeBox}
+            style={[styles.timeBox, { backgroundColor: colors.surface }]}
             onPress={() => (Platform.OS === 'ios' ? openPicker('end') : openAndroid('end'))}
             activeOpacity={0.7}
           >
-            <Text style={styles.timeLabel}>End Time</Text>
-            <Text style={styles.timeValue}>
+            <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>End Time</Text>
+            <Text style={[styles.timeValue, { color: colors.text }]}>
               {formatTime(service.workingHours.endHour, service.workingHours.endMinute)}
             </Text>
           </TouchableOpacity>
@@ -316,24 +341,24 @@ export const WorkingHoursStep = () => {
             <View style={styles.backdrop} />
           </TouchableWithoutFeedback>
 
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
+          <View style={[styles.sheet, { backgroundColor: colors.card || colors.background }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.border || '#D1D5DB' }]} />
 
-            <View style={styles.sheetHeader}>
+            <View style={[styles.sheetHeader, { borderBottomColor: colors.border || '#E5E7EB' }]}>
               <TouchableOpacity
                 onPress={closePicker}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: colors.error || '#EF4444' }]}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={styles.sheetTitle}>
+              <Text style={[styles.sheetTitle, { color: colors.text }]}>
                 {activeTarget === 'start' ? 'Start Time' : 'End Time'}
               </Text>
               <TouchableOpacity
                 onPress={confirmTime}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Text style={styles.doneText}>Done</Text>
+                <Text style={[styles.doneText, { color: colors.primary }]}>Done</Text>
               </TouchableOpacity>
             </View>
 
@@ -344,14 +369,16 @@ export const WorkingHoursStep = () => {
                 selectedIndex={hourIdx}
                 onSelect={setHourIdx}
                 width={80}
+                colors={colors}
               />
-              <Text style={styles.colon}>:</Text>
+              <Text style={[styles.colon, { color: colors.text }]}>:</Text>
               <WheelPicker
                 key={`min-${activeTarget}`}
                 items={MINUTES}
                 selectedIndex={minuteIdx}
                 onSelect={setMinuteIdx}
                 width={80}
+                colors={colors}
               />
               <WheelPicker
                 key={`period-${activeTarget}`}
@@ -359,6 +386,7 @@ export const WorkingHoursStep = () => {
                 selectedIndex={periodIdx}
                 onSelect={setPeriodIdx}
                 width={72}
+                colors={colors}
               />
             </View>
           </View>
@@ -368,60 +396,62 @@ export const WorkingHoursStep = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  title: { fontSize: 28, fontWeight: 'bold', marginTop: 16, marginBottom: 8 },
-  subtitle: { color: 'gray', fontSize: 16, marginBottom: 24 },
-  card: { backgroundColor: 'white', borderRadius: 15, padding: 16 },
-  label: { fontWeight: '600', fontSize: 14, marginBottom: 8 },
-  daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dayChip: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#f5f5f5', borderRadius: 20 },
-  dayChipSelected: { backgroundColor: PURPLE },
-  dayText: { fontWeight: '600', color: '#333' },
-  dayTextSelected: { color: 'white' },
-  timeRow: { flexDirection: 'row', alignItems: 'center' },
-  timeBox: { flex: 1, backgroundColor: '#f5f5f5', borderRadius: 12, padding: 16 },
-  timeLabel: { color: 'gray', fontSize: 12, marginBottom: 4 },
-  timeValue: { fontSize: 16, fontWeight: 'bold' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D1D5DB',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
-  cancelText: { fontSize: 16, color: '#EF4444' },
-  doneText: { fontSize: 16, fontWeight: '700', color: PURPLE },
-  wheelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  colon: { fontSize: 28, fontWeight: '700', color: '#111', marginHorizontal: 2, marginBottom: 4 },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, paddingHorizontal: 20 },
+    title: { fontSize: 28, fontWeight: 'bold', marginTop: 16, marginBottom: 8 },
+    subtitle: { fontSize: 16, marginBottom: 24 },
+    card: { borderRadius: 15, padding: 16 },
+    label: { fontWeight: '600', fontSize: 14, marginBottom: 8 },
+    daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    dayChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    dayText: { fontWeight: '600' },
+    timeRow: { flexDirection: 'row', alignItems: 'center' },
+    timeBox: { flex: 1, borderRadius: 12, padding: 16 },
+    timeLabel: { fontSize: 12, marginBottom: 4 },
+    timeValue: { fontSize: 16, fontWeight: 'bold' },
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+    sheet: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingBottom: 40,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 16,
+    },
+    sheetHandle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    sheetTitle: { fontSize: 16, fontWeight: '600' },
+    cancelText: { fontSize: 16 },
+    doneText: { fontSize: 16, fontWeight: '700' },
+    wheelsRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      paddingBottom: 12,
+    },
+    colon: { fontSize: 28, fontWeight: '700', marginHorizontal: 2, marginBottom: 4 },
+  });

@@ -1,37 +1,75 @@
-
-import React from 'react';
+// toastConfig.tsx (or wherever you have it)
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { BaseToast, ErrorToast } from 'react-native-toast-message';
+import { useTheme } from '@/providers/ThemeProvider';
 
-export const toastConfig = {
-  notification: ({ text1, text2 }: any) => (
-    <View style={styles.container}>
-      <Text style={styles.title}>{text1}</Text>
-      {text2 ? <Text style={styles.body}>{text2}</Text> : null}
+// ─── Custom Toast Component ──────────────────────────────────────────────
+interface ToastProps {
+  text1?: string;
+  text2?: string;
+  type?: 'success' | 'error' | 'info';
+}
+
+const ThemedToast: React.FC<ToastProps> = ({ text1, text2, type = 'info' }) => {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Optional: adjust background based on type (e.g., error red)
+  const containerStyle = useMemo(() => {
+    if (type === 'error') {
+      return { backgroundColor: colors.error || '#ef4444' };
+    }
+    if (type === 'success') {
+      return { backgroundColor: colors.success || '#22c55e' };
+    }
+    return { backgroundColor: colors.card || colors.background };
+  }, [type, colors]);
+
+  return (
+    <View style={[styles.container, containerStyle]}>
+      <Text style={[styles.title, { color: type === 'error' || type === 'success' ? '#fff' : colors.text }]}>
+        {text1}
+      </Text>
+      {text2 ? (
+        <Text style={[styles.body, { color: type === 'error' || type === 'success' ? 'rgba(255,255,255,0.9)' : colors.textSecondary }]}>
+          {text2}
+        </Text>
+      ) : null}
     </View>
-  ),
+  );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    width: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  title: {
-    color: '#1c1c1e',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  body: {
-    color: '#38383999',
-    fontSize: 13,
-    marginTop: 3,
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      width: '90%',
+      borderRadius: 12,
+      padding: 14,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 5,
+    },
+    title: {
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    body: {
+      fontSize: 13,
+      marginTop: 3,
+    },
+  });
+
+// ─── Toast Config ──────────────────────────────────────────────────────────
+export const toastConfig = {
+  success: (props: any) => <ThemedToast {...props} type="success" />,
+  error: (props: any) => <ThemedToast {...props} type="error" />,
+  info: (props: any) => <ThemedToast {...props} type="info" />,
+  // You can also add a 'notification' type if needed
+  notification: (props: any) => <ThemedToast {...props} type="info" />,
+};

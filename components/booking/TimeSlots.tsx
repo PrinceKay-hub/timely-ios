@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { addMinutes, format, isToday } from 'date-fns';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export interface TimeSlot {
   display: string;
@@ -10,13 +9,9 @@ export interface TimeSlot {
 }
 
 interface TimeSlotsProps {
-  /** The date for which to generate time slots */
   selectedDate: Date | null;
-  /** Currently selected time string (for highlighting) */
   selectedTime: string | null;
-  /** Callback when a time slot is selected – receives the time string and the full slot object */
   onSelectTime: (timeString: string, slot: TimeSlot) => void;
-  /** Working hours object (optional – if not provided, a default 9‑17 will be used) */
   workingHours?: {
     startHour: number;
     startMinute: number;
@@ -31,11 +26,16 @@ export const TimeSlots: React.FC<TimeSlotsProps> = ({
   onSelectTime,
   workingHours = { startHour: 9, startMinute: 0, endHour: 17, endMinute: 0 },
 }) => {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (!selectedDate) {
-    return null; // or a placeholder
+    return null;
   }
 
-  // Generate time slots based on working hours and selected date
   const generateTimeSlots = (): TimeSlot[] => {
     const slots: TimeSlot[] = [];
     let start = new Date(selectedDate);
@@ -80,32 +80,33 @@ export const TimeSlots: React.FC<TimeSlotsProps> = ({
   );
 };
 
-// Keep the same styles
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  slot: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  selectedSlot: {
-    backgroundColor: PURPLE,
-    borderColor: PURPLE,
-  },
-  slotText: {
-    color: 'gray',
-    fontWeight: '500',
-  },
-  selectedSlotText: {
-    color: 'white',
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    slot: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      backgroundColor: colors.card || colors.background,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border || '#eee',
+      minWidth: 80,
+      alignItems: 'center',
+    },
+    selectedSlot: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    slotText: {
+      color: colors.textSecondary || 'gray',
+      fontWeight: '500',
+    },
+    selectedSlotText: {
+      color: '#fff',
+    },
+  });

@@ -1,5 +1,5 @@
 // components/PortfolioTabContent.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,7 @@ import { Tabs } from 'react-native-collapsible-tab-view';
 import { Ionicons } from '@expo/vector-icons';
 import { usePortfolioStore } from '@/stores/portfolioStore';
 import { PortfolioViewerModal } from './PortfolioViewerModal';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface Props {
   serviceId: string;
@@ -22,6 +21,12 @@ interface Props {
 
 export const PortfolioTabContent: React.FC<Props> = ({ serviceId, serviceName }) => {
   const { images, loading, error, loadPortfolio, toggleLike } = usePortfolioStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -33,8 +38,10 @@ export const PortfolioTabContent: React.FC<Props> = ({ serviceId, serviceName })
   if (loading && images.length === 0) {
     return (
       <Tabs.ScrollView contentContainerStyle={styles.center}>
-        <ActivityIndicator size="large" color={PURPLE} />
-        <Text style={styles.loadingText}>Loading portfolio...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          Loading portfolio...
+        </Text>
       </Tabs.ScrollView>
     );
   }
@@ -42,9 +49,12 @@ export const PortfolioTabContent: React.FC<Props> = ({ serviceId, serviceName })
   if (error) {
     return (
       <Tabs.ScrollView contentContainerStyle={styles.center}>
-        <Ionicons name="alert-circle-outline" size={48} color="#ff6b6b" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={() => loadPortfolio(serviceId)} style={styles.retryButton}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.error || '#ff6b6b'} />
+        <Text style={[styles.errorText, { color: colors.error || '#ff6b6b' }]}>{error}</Text>
+        <TouchableOpacity
+          onPress={() => loadPortfolio(serviceId)}
+          style={[styles.retryButton, { backgroundColor: colors.primary }]}
+        >
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </Tabs.ScrollView>
@@ -54,9 +64,9 @@ export const PortfolioTabContent: React.FC<Props> = ({ serviceId, serviceName })
   if (images.length === 0) {
     return (
       <Tabs.ScrollView contentContainerStyle={styles.center}>
-        <Ionicons name="images-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyTitle}>No Portfolio Yet</Text>
-        <Text style={styles.emptyText}>
+        <Ionicons name="images-outline" size={64} color={colors.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>No Portfolio Yet</Text>
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
           This service hasn't added any portfolio images.
         </Text>
       </Tabs.ScrollView>
@@ -118,86 +128,84 @@ export const PortfolioTabContent: React.FC<Props> = ({ serviceId, serviceName })
   );
 };
 
-const styles = StyleSheet.create({
-  center: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#666',
-  },
-  errorText: {
-    color: '#ff6b6b',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    backgroundColor: PURPLE,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  gridContainer: {
-    padding: 12,
-    paddingBottom: 24,
-  },
-  card: {
-    flex: 1,
-    margin: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    aspectRatio: 0.85,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  caption: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  likeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  likeCount: {
-    color: 'white',
-    fontSize: 11,
-    marginLeft: 4,
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    center: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    loadingText: {
+      marginTop: 12,
+    },
+    errorText: {
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    retryButton: {
+      marginTop: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 8,
+    },
+    retryText: {
+      color: 'white',
+      fontWeight: 'bold',
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginTop: 16,
+    },
+    emptyText: {
+      fontSize: 14,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+    gridContainer: {
+      padding: 12,
+      paddingBottom: 24,
+    },
+    card: {
+      flex: 1,
+      margin: 8,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: colors.card || colors.background,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+      aspectRatio: 0.85,
+    },
+    image: {
+      width: '100%',
+      height: '100%',
+    },
+    overlay: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 8,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+    },
+    caption: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    likeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    likeCount: {
+      color: 'white',
+      fontSize: 11,
+      marginLeft: 4,
+    },
+  });

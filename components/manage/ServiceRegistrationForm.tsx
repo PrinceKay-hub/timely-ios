@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { BasicInfoStep } from './steps/BasicInfoStep';
@@ -8,8 +8,7 @@ import { LocationStep } from './steps/LocationStep';
 import { WorkingHoursStep } from './steps/WorkingHoursStep';
 import { ServicesStep } from './steps/ServicesStep';
 import { PhotosStep } from './steps/PhotosStep';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface Props {
   userId: string;
@@ -17,6 +16,11 @@ interface Props {
 
 export const ServiceRegistrationForm: React.FC<Props> = ({ userId }) => {
   const { step, currentService } = useServiceRegistrationStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Guard at the top: no step component below should ever need to
   // worry about currentService being null. This is the one place
@@ -24,7 +28,7 @@ export const ServiceRegistrationForm: React.FC<Props> = ({ userId }) => {
   if (!currentService) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={PURPLE} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -49,7 +53,17 @@ export const ServiceRegistrationForm: React.FC<Props> = ({ userId }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { padding: 20 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      padding: 20,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 80,
+      backgroundColor: colors.surface,
+    },
+  });

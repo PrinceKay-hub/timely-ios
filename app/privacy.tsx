@@ -1,5 +1,5 @@
 // app/privacy.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,24 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-
-const PURPLE = '#8B5CF6';
-const GRAY_100 = '#f5f5f5';
-const GRAY_300 = '#e0e0e0';
-const GRAY_600 = '#666';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export default function PrivacyPolicyPage() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const isDark = theme.dark;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleBack = () => router.back();
 
+  // Subcomponents using the dynamic styles
   const SectionTitle = ({ title }) => (
     <Text style={styles.sectionTitle}>{title}</Text>
   );
@@ -47,19 +51,21 @@ export default function PrivacyPolicyPage() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={PURPLE} />
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity onPress={handleBack} style={[styles.backButton, { backgroundColor: '#fff' }]}>
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Privacy Policy</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.mainTitle}>Privacy Policy for Timely Booking App</Text>
-        <Text style={styles.lastUpdated}>Last updated: February 26, 2026</Text>
-        <View style={styles.divider} />
+        <Text style={[styles.mainTitle, { color: colors.primary }]}>Privacy Policy for Timely Booking App</Text>
+        <Text style={[styles.lastUpdated, { color: colors.textSecondary }]}>Last updated: February 26, 2026</Text>
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* Introduction */}
         <SectionTitle title="Introduction" />
@@ -310,8 +316,14 @@ export default function PrivacyPolicyPage() {
         <Paragraph text="You have the right to make a complaint at any time to your local data protection authority. We would, however, appreciate the chance to deal with your concerns before you approach them, so please contact us in the first instance." />
 
         {/* Footer */}
-        <View style={styles.footerBox}>
-          <Text style={styles.footerText}>
+        <View style={[
+          styles.footerBox,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          }
+        ]}>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
             This privacy policy was last updated on February 26, 2026.
           </Text>
         </View>
@@ -320,111 +332,107 @@ export default function PrivacyPolicyPage() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { paddingBottom: 40 },
-  header: {
-    backgroundColor: PURPLE,
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-    marginRight: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  mainTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: PURPLE,
-    marginTop: 20,
-    marginHorizontal: 20,
-  },
-  lastUpdated: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    color: GRAY_600,
-    marginTop: 8,
-    marginHorizontal: 20,
-    marginBottom: 16,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: GRAY_300,
-    marginVertical: 16,
-    marginHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 24,
-    marginBottom: 8,
-    marginHorizontal: 20,
-  },
-  subSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 4,
-    marginHorizontal: 20,
-  },
-  paragraph: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    marginVertical: 4,
-    marginHorizontal: 20,
-  },
-  monospace: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 12,
-    backgroundColor: GRAY_100,
-    padding: 8,
-    borderRadius: 4,
-  },
-  bulletList: {
-    marginHorizontal: 20,
-    marginVertical: 4,
-  },
-  bulletItem: {
-    flexDirection: 'row',
-    marginVertical: 2,
-  },
-  bullet: {
-    fontSize: 14,
-    color: '#333',
-    width: 14,
-  },
-  bulletText: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
-    lineHeight: 20,
-  },
-  footerBox: {
-    backgroundColor: GRAY_100,
-    padding: 16,
-    marginHorizontal: 20,
-    marginTop: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: GRAY_300,
-  },
-  footerText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: GRAY_600,
-    textAlign: 'center',
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    scrollContent: { paddingBottom: 40 },
+    header: {
+      paddingTop: 50,
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+    },
+    backButton: {
+      borderRadius: 20,
+      padding: 8,
+      marginRight: 16,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#fff',
+    },
+    mainTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      marginTop: 20,
+      marginHorizontal: 20,
+    },
+    lastUpdated: {
+      fontSize: 14,
+      fontStyle: 'italic',
+      marginTop: 8,
+      marginHorizontal: 20,
+      marginBottom: 16,
+    },
+    divider: {
+      height: 1,
+      marginVertical: 16,
+      marginHorizontal: 20,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginTop: 24,
+      marginBottom: 8,
+      marginHorizontal: 20,
+      color: colors.text,
+    },
+    subSectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginTop: 16,
+      marginBottom: 4,
+      marginHorizontal: 20,
+      color: colors.text,
+    },
+    paragraph: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+      marginVertical: 4,
+      marginHorizontal: 20,
+    },
+    monospace: {
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      fontSize: 12,
+      backgroundColor: colors.surface,
+      padding: 8,
+      borderRadius: 4,
+    },
+    bulletList: {
+      marginHorizontal: 20,
+      marginVertical: 4,
+    },
+    bulletItem: {
+      flexDirection: 'row',
+      marginVertical: 2,
+    },
+    bullet: {
+      fontSize: 14,
+      color: colors.text,
+      width: 14,
+    },
+    bulletText: {
+      fontSize: 14,
+      color: colors.text,
+      flex: 1,
+      lineHeight: 20,
+    },
+    footerBox: {
+      padding: 16,
+      marginHorizontal: 20,
+      marginTop: 24,
+      borderRadius: 8,
+      borderWidth: 1,
+    },
+    footerText: {
+      fontSize: 12,
+      fontStyle: 'italic',
+      textAlign: 'center',
+    },
+  });

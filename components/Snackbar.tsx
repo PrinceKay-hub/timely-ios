@@ -1,6 +1,7 @@
 // components/Snackbar.tsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Animated, Text, StyleSheet, Dimensions } from 'react-native';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface SnackbarProps {
   message: string;
@@ -19,6 +20,25 @@ export const Snackbar: React.FC<SnackbarProps> = ({
   onHide,
   type = 'info',
 }) => {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Determine background color based on type and theme
+  const backgroundColor = useMemo(() => {
+    switch (type) {
+      case 'error':
+        return colors.error || '#ef4444';
+      case 'success':
+        return colors.success || '#10b981';
+      case 'info':
+      default:
+        return colors.primary || '#3b82f6';
+    }
+  }, [type, colors]);
+
   const translateY = useRef(new Animated.Value(100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -46,8 +66,6 @@ export const Snackbar: React.FC<SnackbarProps> = ({
     }
   }, [visible]);
 
-  const backgroundColor = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#3b82f6';
-
   return (
     <Animated.View
       style={[
@@ -60,25 +78,27 @@ export const Snackbar: React.FC<SnackbarProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-    zIndex: 1000,
-  },
-  message: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      position: 'absolute',
+      bottom: 24,
+      left: 20,
+      right: 20,
+      borderRadius: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
+      zIndex: 1000,
+    },
+    message: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '500',
+    },
+  });

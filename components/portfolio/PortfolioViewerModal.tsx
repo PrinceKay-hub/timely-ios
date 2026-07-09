@@ -1,5 +1,5 @@
 // components/PortfolioViewerModal.tsx
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -12,8 +12,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image'; // or use react-native-fast-image for better caching
-import { PortfolioImage } from '@/types/portfolio'; 
+import { Image } from 'expo-image';
+import { PortfolioImage } from '@/types/portfolio';
+import { useTheme } from '@/providers/ThemeProvider';
+import { useAuthStore } from '@/stores/auth'; // Import to check if user liked
 
 const { width, height } = Dimensions.get('window');
 
@@ -37,6 +39,12 @@ export const PortfolioViewerModal: React.FC<Props> = ({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showUI, setShowUI] = useState(true);
   const flatListRef = useRef<FlatList>(null);
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const { user } = useAuthStore(); // Get current user for like status
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleScroll = useCallback((event: any) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -46,21 +54,7 @@ export const PortfolioViewerModal: React.FC<Props> = ({
   const toggleUI = () => setShowUI((prev) => !prev);
 
   const currentImage = images[currentIndex];
-  const isLiked = currentImage?.likes?.includes(currentImage?.id); 
-
-
-  // Wait, we need userId. We'll need to get userId from auth store.
-  // Actually, we need the user id to determine if liked. We'll need to pass it or get from auth store.
-  // For simplicity, we'll assume the store's toggleLike uses optimistic update and we just call it.
-  // But to display liked state, we need to know if current user's id is in likes array.
-  // We'll need to access the current user id from the auth store inside the component.
-  // Let's add a user prop or get from store. I'll show using auth store:
-
-  // ... inside the component:
-  // const { user } = useAuthStore();
-  // const isLiked = currentImage?.likes?.includes(user?.uid);
-
-  // But to keep this example self-contained, I'll leave a placeholder. You can add the auth store import.
+  const isLiked = currentImage?.likes?.includes(user?.uid) || false;
 
   const formatCount = (count: number) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
@@ -94,8 +88,6 @@ export const PortfolioViewerModal: React.FC<Props> = ({
         contentFit="contain"
         transition={300}
         cachePolicy="memory-disk"
-        // Optional: placeholder
-        //placeholder={require('@/assets/placeholder.png')}
       />
     </TouchableOpacity>
   );
@@ -123,10 +115,13 @@ export const PortfolioViewerModal: React.FC<Props> = ({
         {/* Top bar with close button */}
         {showUI && (
           <SafeAreaView style={styles.topBar}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeButton, { backgroundColor: colors.primary }]}
+            >
               <Ionicons name="close" size={24} color="white" />
             </TouchableOpacity>
-            <View style={styles.counter}>
+            <View style={[styles.counter, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
               <Text style={styles.counterText}>
                 {currentIndex + 1} / {images.length}
               </Text>
@@ -144,20 +139,21 @@ export const PortfolioViewerModal: React.FC<Props> = ({
               <Ionicons
                 name={isLiked ? 'heart' : 'heart-outline'}
                 size={28}
-                color={isLiked ? '#ff4444' : 'white'}
+                color={isLiked ? colors.error || '#ff4444' : 'white'}
               />
               <Text style={styles.actionLabel}>
                 {formatCount(currentImage.likes?.length || 0)}
               </Text>
             </TouchableOpacity>
-            {/* Uncomment share/download if needed */}
           </SafeAreaView>
         )}
 
         {/* Bottom info */}
         {showUI && currentImage && (
-          <SafeAreaView style={styles.bottomInfo}>
-            <Text style={styles.serviceName}>{currentImage.serviceName}</Text>
+          <SafeAreaView style={[styles.bottomInfo, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+            <Text style={styles.serviceName}>
+              {currentImage.serviceName}
+            </Text>
             {currentImage.caption ? (
               <Text style={styles.caption}>{currentImage.caption}</Text>
             ) : null}
@@ -169,88 +165,87 @@ export const PortfolioViewerModal: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  page: {
-    width,
-    height,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  image: {
-    width: width,
-    height: height,
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 40,
-  },
-  closeButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 30,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  counter: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  counterText: {
-    color: 'white',
-    fontSize: 14,
-  },
-  actionButtons: {
-    position: 'absolute',
-    right: 16,
-    bottom: 100,
-    alignItems: 'center',
-  },
-  actionButton: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  actionLabel: {
-    color: 'white',
-    fontSize: 12,
-    marginTop: 4,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  bottomInfo: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  serviceName: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  caption: {
-    color: 'white',
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  date: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: 'black',
+    },
+    page: {
+      width,
+      height,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    image: {
+      width: width,
+      height: height,
+    },
+    topBar: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 40,
+    },
+    closeButton: {
+      borderRadius: 30,
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    counter: {
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    counterText: {
+      color: 'white',
+      fontSize: 14,
+    },
+    actionButtons: {
+      position: 'absolute',
+      right: 16,
+      bottom: 100,
+      alignItems: 'center',
+    },
+    actionButton: {
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    actionLabel: {
+      color: 'white',
+      fontSize: 12,
+      marginTop: 4,
+      textShadowColor: 'rgba(0,0,0,0.5)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    bottomInfo: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 20,
+    },
+    serviceName: {
+      color: 'rgba(255,255,255,0.7)',
+      fontSize: 12,
+      marginBottom: 4,
+    },
+    caption: {
+      color: 'white',
+      fontSize: 14,
+      marginBottom: 8,
+    },
+    date: {
+      color: 'rgba(255,255,255,0.5)',
+      fontSize: 12,
+    },
+  });

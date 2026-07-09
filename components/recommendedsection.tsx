@@ -1,5 +1,5 @@
 // components/home/RecommendedSection.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,26 +8,36 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
-import { useServiceDataStore } from '@/stores/serviceData';  
-import { useHomeStore, ViewType } from '@/stores/home'; 
+import { useServiceDataStore } from '@/stores/serviceData';
+import { useHomeStore, ViewType } from '@/stores/home';
 import { useRouter } from 'expo-router';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface RecommendedSectionProps {
   user: Record<string, any>;
 }
 
-const PURPLE = '#8B5CF6';
-const GREEN  = '#10B981';
-
-// ─── Shared image component with shimmer fallback ─────────────────────────────
-const ServiceImage: React.FC<{ uri: string; style: any }> = ({ uri, style }) => {
+// ─── Shared image component ─────────────────────────────────────────────
+const ServiceImage: React.FC<{
+  uri: string;
+  style: any;
+  colors: any;
+}> = ({ uri, style, colors }) => {
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(false);
-  
+  const [error, setError] = useState(false);
 
   return (
-    <View style={[style, { backgroundColor: '#f3f4f6', overflow: 'hidden' }]}>
+    <View
+      style={[
+        style,
+        {
+          backgroundColor: colors.surface || '#f3f4f6',
+          overflow: 'hidden',
+        },
+      ]}
+    >
       {!error && uri ? (
         <Image
           source={{ uri }}
@@ -36,43 +46,81 @@ const ServiceImage: React.FC<{ uri: string; style: any }> = ({ uri, style }) => 
           onError={() => { setError(true); setLoading(false); }}
         />
       ) : (
-        <View style={[StyleSheet.absoluteFill, styles.imageFallback]}>
-          <Text style={styles.imageFallbackIcon}>🖼</Text>
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.surface || '#f3f4f6',
+            },
+          ]}
+        >
+          <Text style={{ fontSize: 28 }}>🖼</Text>
         </View>
       )}
       {loading && !error && (
-        <View style={[StyleSheet.absoluteFill, styles.shimmer]} />
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: colors.border || '#e5e7eb' },
+          ]}
+        />
       )}
     </View>
   );
 };
 
-// ─── Service chip ─────────────────────────────────────────────────────────────
-const ServiceChip: React.FC<{ name: string }> = ({ name }) => (
-  <View style={styles.chip}>
-    <Text style={styles.chipText}>{name}</Text>
+// ─── Service chip ──────────────────────────────────────────────────────
+const ServiceChip: React.FC<{ name: string; colors: any }> = ({ name, colors }) => (
+  <View
+    style={{
+      backgroundColor: colors.primaryLight || `${colors.primary}1a`,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    }}
+  >
+    <Text style={{ color: colors.white, fontSize: 11, fontWeight: '600' }}>
+      {name}
+    </Text>
   </View>
 );
 
-// ─── Rating row ───────────────────────────────────────────────────────────────
-const RatingRow: React.FC<{ rating: number; reviews?: number; small?: boolean }> = ({
-  rating, reviews, small,
-}) => (
-  <View style={styles.ratingRow}>
+// ─── Rating row ────────────────────────────────────────────────────────
+const RatingRow: React.FC<{
+  rating: number;
+  reviews?: number;
+  small?: boolean;
+  colors: any;
+}> = ({ rating, reviews, small, colors }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 }}>
     <Text style={{ fontSize: small ? 10 : 14 }}>⭐</Text>
-    <Text style={[styles.ratingVal, small && styles.ratingValSm]}>
+    <Text
+      style={{
+        fontWeight: '700',
+        fontSize: small ? 10 : 13,
+        color: colors.text,
+      }}
+    >
       {rating.toFixed(1)}
     </Text>
     {reviews !== undefined && !small && (
-      <Text style={styles.reviewCount}>({reviews} reviews)</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+        ({reviews} reviews)
+      </Text>
     )}
   </View>
 );
 
-// ─── Tile item ────────────────────────────────────────────────────────────────
-const TileItem: React.FC<{ item: Record<string, any>; user: Record<string, any> }> = ({ item, user }) => {
-  
-  const chips = Array.isArray(item.services) ? (item.services as any[]).slice(0, 3) : [];
+// ─── Tile item ──────────────────────────────────────────────────────────
+const TileItem: React.FC<{
+  item: Record<string, any>;
+  user: Record<string, any>;
+  styles: any;
+  colors: any;
+}> = ({ item, user, styles, colors }) => {
+  const chips = Array.isArray(item.services) ? item.services.slice(0, 3) : [];
   const router = useRouter();
 
   return (
@@ -81,21 +129,28 @@ const TileItem: React.FC<{ item: Record<string, any>; user: Record<string, any> 
       onPress={() => router.push(`/service/${item.id}`)}
       activeOpacity={0.85}
     >
-      <ServiceImage uri={item?.images?.[0] ?? ''} style={styles.tileImage} />
+      <ServiceImage uri={item?.images?.[0] ?? ''} style={styles.tileImage} colors={colors} />
       <View style={styles.tileBody}>
-        {/* Name + verified */}
         <View style={styles.rowBetween}>
-          <Text style={styles.tileName} numberOfLines={1}>{item.name ?? ''}</Text>
+          <Text style={styles.tileName} numberOfLines={1}>
+            {item.name ?? ''}
+          </Text>
           {item.isVerified && (
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedIcon}>✔</Text>
+            <View
+              style={[
+                styles.verifiedBadge,
+                { backgroundColor: `${colors.success}1a` },
+              ]}
+            >
+              <Text style={{ color: colors.success, fontSize: 11, fontWeight: '700' }}>
+                ✔
+              </Text>
             </View>
           )}
         </View>
 
-        <RatingRow rating={item.rating ?? 0} reviews={item.reviews ?? 0} />
+        <RatingRow rating={item.rating ?? 0} reviews={item.reviews ?? 0} colors={colors} />
 
-        {/* Location */}
         <View style={styles.locationRow}>
           <Text style={styles.locationIcon}>📍</Text>
           <Text style={styles.locationText} numberOfLines={1}>
@@ -103,13 +158,13 @@ const TileItem: React.FC<{ item: Record<string, any>; user: Record<string, any> 
           </Text>
         </View>
 
-        {/* Service chips */}
         {chips.length > 0 && (
           <View style={styles.chipWrap}>
             {chips.map((s: any, i: number) => (
               <ServiceChip
                 key={i}
-                name={typeof s === 'object' ? (s.name ?? '') : String(s)}
+                name={typeof s === 'object' ? s.name ?? '' : String(s)}
+                colors={colors}
               />
             ))}
           </View>
@@ -119,13 +174,14 @@ const TileItem: React.FC<{ item: Record<string, any>; user: Record<string, any> 
   );
 };
 
-// ─── Grid item ────────────────────────────────────────────────────────────────
-const GRID_GAP    = 10;
-const GRID_H_PAD  = 20;
-
-const GridItem: React.FC<{ item: Record<string, any>; user: Record<string, any>; colWidth: number }> = ({
-  item, user, colWidth,
-}) => {
+// ─── Grid item ──────────────────────────────────────────────────────────
+const GridItem: React.FC<{
+  item: Record<string, any>;
+  user: Record<string, any>;
+  colWidth: number;
+  styles: any;
+  colors: any;
+}> = ({ item, user, colWidth, styles, colors }) => {
   const router = useRouter();
 
   return (
@@ -134,21 +190,29 @@ const GridItem: React.FC<{ item: Record<string, any>; user: Record<string, any>;
       onPress={() => router.push(`/service/${item.id}`)}
       activeOpacity={0.85}
     >
-      <ServiceImage uri={item?.images?.[0] ?? ''} style={styles.gridImage} />
+      <ServiceImage uri={item?.images?.[0] ?? ''} style={styles.gridImage} colors={colors} />
       <View style={styles.gridBody}>
-        <Text style={styles.gridName} numberOfLines={1}>{item.name ?? ''}</Text>
-        <Text style={styles.gridLocation} numberOfLines={1}>{item.location ?? ''}</Text>
-        <View style={styles.gridRatingPill}>
-          <RatingRow rating={item.rating ?? 0} small />
+        <Text style={styles.gridName} numberOfLines={1}>
+          {item.name ?? ''}
+        </Text>
+        <Text style={styles.gridLocation} numberOfLines={1}>
+          {item.location ?? ''}
+        </Text>
+        <View style={[styles.gridRatingPill, { backgroundColor: colors.primary }]}>
+          <RatingRow rating={item.rating ?? 0} small colors={colors} />
         </View>
       </View>
     </TouchableOpacity>
   );
 };
 
-// ─── List item ────────────────────────────────────────────────────────────────
-const ListItem: React.FC<{ item: Record<string, any>; user: Record<string, any> }> = ({ item, user }) => {
-  
+// ─── List item ──────────────────────────────────────────────────────────
+const ListItem: React.FC<{
+  item: Record<string, any>;
+  user: Record<string, any>;
+  styles: any;
+  colors: any;
+}> = ({ item, user, styles, colors }) => {
   const router = useRouter();
 
   return (
@@ -157,10 +221,12 @@ const ListItem: React.FC<{ item: Record<string, any>; user: Record<string, any> 
       onPress={() => router.push(`/service/${item.id}`)}
       activeOpacity={0.85}
     >
-      <ServiceImage uri={item?.images?.[0] ?? ''} style={styles.listImage} />
+      <ServiceImage uri={item?.images?.[0] ?? ''} style={styles.listImage} colors={colors} />
       <View style={styles.listBody}>
-        <Text style={styles.listName} numberOfLines={2}>{item.name ?? ''}</Text>
-        <RatingRow rating={item.rating ?? 0} reviews={item.reviews ?? 0} />
+        <Text style={styles.listName} numberOfLines={2}>
+          {item.name ?? ''}
+        </Text>
+        <RatingRow rating={item.rating ?? 0} reviews={item.reviews ?? 0} colors={colors} />
         <Text style={styles.listLocation} numberOfLines={1}>
           {item.location ?? 'Unknown location'}
         </Text>
@@ -169,41 +235,65 @@ const ListItem: React.FC<{ item: Record<string, any>; user: Record<string, any> 
   );
 };
 
-// ─── Empty state ─────────────────────────────────────────────────────────────
-const EmptyState: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => (
+// ─── Empty state ────────────────────────────────────────────────────────
+const EmptyState: React.FC<{
+  onRefresh: () => void;
+  styles: any;
+  colors: any;
+}> = ({ onRefresh, styles, colors }) => (
   <View style={styles.emptyWrap}>
-    <View style={styles.emptyIconWrap}>
+    <View
+      style={[
+        styles.emptyIconWrap,
+        { backgroundColor: `${colors.primary}1a` },
+      ]}
+    >
       <Text style={styles.emptyIcon}>🔍</Text>
     </View>
-    <Text style={styles.emptyTitle}>No Content Available</Text>
-    <Text style={styles.emptySubtitle}>
+    <Text style={[styles.emptyTitle, { color: colors.text }]}>No Content Available</Text>
+    <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
       Check back later for new updates{'\n'}and exciting content
     </Text>
-    <TouchableOpacity style={styles.refreshBtn} onPress={onRefresh} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={[styles.refreshBtn, { backgroundColor: colors.primary }]}
+      onPress={onRefresh}
+      activeOpacity={0.85}
+    >
       <Text style={styles.refreshBtnText}>↺  Refresh</Text>
     </TouchableOpacity>
   </View>
 );
 
-// ─── View type switcher ───────────────────────────────────────────────────────
-const ViewTypeSwitcher: React.FC = () => {
+// ─── View type switcher ─────────────────────────────────────────────────
+const ViewTypeSwitcher: React.FC<{
+  styles: any;
+  colors: any;
+}> = ({ styles, colors }) => {
   const { viewType, setViewType } = useHomeStore();
 
   const btn = (type: ViewType, icon: string) => (
     <TouchableOpacity
-      style={[styles.switchBtn, viewType === type && styles.switchBtnActive]}
+      style={[
+        styles.switchBtn,
+        viewType === type && [styles.switchBtnActive, { backgroundColor: `${colors.primary}18` }],
+      ]}
       onPress={() => setViewType(type)}
       activeOpacity={0.7}
     >
-      <Text style={[styles.switchIcon, viewType === type && styles.switchIconActive]}>
+      <Text
+        style={[
+          styles.switchIcon,
+          viewType === type && { color: colors.primary },
+        ]}
+      >
         {icon}
       </Text>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.switcher}>
-      <Text style={styles.switcherTitle}>Top services</Text>
+    <View style={[styles.switcher, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.switcherTitle, { color: colors.text }]}>Top services</Text>
       <View style={styles.switcherButtons}>
         {btn('tile', '⊞')}
         {btn('grid', '⊟')}
@@ -213,10 +303,15 @@ const ViewTypeSwitcher: React.FC = () => {
   );
 };
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main component ─────────────────────────────────────────────────────
 export const RecommendedSection: React.FC<RecommendedSectionProps> = ({ user }) => {
   const { services, isLoading, error, fetchServiceData } = useServiceDataStore();
   const { viewType } = useHomeStore();
+  const { theme } = useTheme();
+
+  // Build dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const colors = theme.colors;
 
   React.useEffect(() => {
     if (!services.length && !isLoading && !error) {
@@ -227,8 +322,8 @@ export const RecommendedSection: React.FC<RecommendedSectionProps> = ({ user }) 
   if (isLoading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={PURPLE} />
-        <Text style={styles.loadingText}>Loading...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading...</Text>
       </View>
     );
   }
@@ -236,8 +331,13 @@ export const RecommendedSection: React.FC<RecommendedSectionProps> = ({ user }) 
   if (error) {
     return (
       <View style={styles.networkErrorWrap}>
-        <Text style={styles.networkErrorText}>Network error.</Text>
-        <TouchableOpacity onPress={fetchServiceData} style={styles.retryBtn}>
+        <Text style={[styles.networkErrorText, { color: colors.error || '#ef4444' }]}>
+          Network error.
+        </Text>
+        <TouchableOpacity
+          onPress={fetchServiceData}
+          style={[styles.retryBtn, { backgroundColor: colors.primary }]}
+        >
           <Text style={styles.retryBtnText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -245,35 +345,45 @@ export const RecommendedSection: React.FC<RecommendedSectionProps> = ({ user }) 
   }
 
   if (!services || services.length === 0) {
-    return <EmptyState onRefresh={fetchServiceData} />;
+    return <EmptyState onRefresh={fetchServiceData} styles={styles} colors={colors} />;
   }
 
   return (
     <View>
-      <ViewTypeSwitcher />
+      <ViewTypeSwitcher styles={styles} colors={colors} />
 
       {viewType === 'tile' && (
         <FlatList
           data={services}
           keyExtractor={(_, i) => `tile-${i}`}
-          renderItem={({ item }) => <TileItem item={item} user={user} />}
+          renderItem={({ item }) => (
+            <TileItem item={item} user={user} styles={styles} colors={colors} />
+          )}
           contentContainerStyle={styles.listPad}
           scrollEnabled={false}
         />
       )}
 
       {viewType === 'grid' && (
-        // FlatList with numColumns for grid layout
         <FlatList
           data={services}
           keyExtractor={(_, i) => `grid-${i}`}
           numColumns={2}
           columnWrapperStyle={styles.gridRow}
           renderItem={({ item, index }) => {
-            // Compute colWidth dynamically
-            const { width } = require('react-native').Dimensions.get('window');
-            const colWidth   = (width - GRID_H_PAD * 2 - GRID_GAP) / 2;
-            return <GridItem item={item} user={user} colWidth={colWidth} />;
+            const { width } = Dimensions.get('window');
+            const GRID_GAP = 10;
+            const GRID_H_PAD = 20;
+            const colWidth = (width - GRID_H_PAD * 2 - GRID_GAP) / 2;
+            return (
+              <GridItem
+                item={item}
+                user={user}
+                colWidth={colWidth}
+                styles={styles}
+                colors={colors}
+              />
+            );
           }}
           contentContainerStyle={styles.listPad}
           scrollEnabled={false}
@@ -284,7 +394,9 @@ export const RecommendedSection: React.FC<RecommendedSectionProps> = ({ user }) 
         <FlatList
           data={services}
           keyExtractor={(_, i) => `list-${i}`}
-          renderItem={({ item }) => <ListItem item={item} user={user} />}
+          renderItem={({ item }) => (
+            <ListItem item={item} user={user} styles={styles} colors={colors} />
+          )}
           contentContainerStyle={styles.listPad}
           scrollEnabled={false}
         />
@@ -293,152 +405,149 @@ export const RecommendedSection: React.FC<RecommendedSectionProps> = ({ user }) 
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  listPad: { paddingHorizontal: 20, paddingBottom: 16 },
+// ─── Styles factory ──────────────────────────────────────────────────────
+const createStyles = (theme: any) => {
+  const { colors } = theme;
 
-  // Shimmer / image fallback
-  shimmer: { backgroundColor: '#e5e7eb' },
-  imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6' },
-  imageFallbackIcon: { fontSize: 28 },
+  return StyleSheet.create({
+    listPad: { paddingHorizontal: 20, paddingBottom: 16 },
 
-  // Rating
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
-  ratingVal: { fontWeight: '700', fontSize: 13 },
-  ratingValSm: { fontSize: 10, color: '#fff' },
-  reviewCount: { color: '#9ca3af', fontSize: 12 },
+    // Rating
+    ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+    ratingVal: { fontWeight: '700', fontSize: 13, color: colors.text },
+    ratingValSm: { fontSize: 10, color: '#fff' },
+    reviewCount: { color: colors.textSecondary, fontSize: 12 },
 
-  // Chip
-  chip: {
-    backgroundColor: '#ede9fe',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  chipText: { color: PURPLE, fontSize: 11, fontWeight: '600' },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    // Chip
+    chip: {
+      backgroundColor: colors.primaryLight || `${colors.primary}1a`,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    chipText: { color: colors.primary, fontSize: 11, fontWeight: '600' },
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
 
-  // Location
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  locationIcon: { fontSize: 12 },
-  locationText: { color: '#9ca3af', fontSize: 12, flex: 1 },
+    // Location
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    locationIcon: { fontSize: 12 },
+    locationText: { color: colors.textSecondary, fontSize: 12, flex: 1 },
 
-  // Tile
-  tileCard: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  tileImage: { height: 160, width: '100%' },
-  tileBody: { padding: 16 },
-  tileName: { fontSize: 17, fontWeight: '700', flex: 1 },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  verifiedBadge: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: `${GREEN}1a`,
-    alignItems: 'center', justifyContent: 'center', marginLeft: 6,
-  },
-  verifiedIcon: { color: GREEN, fontSize: 11, fontWeight: '700' },
+    // Tile
+    tileCard: {
+      backgroundColor: colors.card || colors.background,
+      borderRadius: 15,
+      marginBottom: 16,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      elevation: 3,
+      overflow: 'hidden',
+    },
+    tileImage: { height: 160, width: '100%' },
+    tileBody: { padding: 16 },
+    tileName: { fontSize: 17, fontWeight: '700', color: colors.text, flex: 1 },
+    rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    verifiedBadge: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 6,
+    },
 
-  // Grid
-  gridRow: { gap: GRID_GAP, marginBottom: GRID_GAP },
-  gridCard: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    overflow: 'hidden',
-  },
-  gridImage: { height: 120, width: '100%' },
-  gridBody: { padding: 8, gap: 4 },
-  gridName: { fontWeight: '700', fontSize: 13 },
-  gridLocation: { fontSize: 11, color: '#9ca3af' },
-  gridRatingPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: PURPLE,
-    borderRadius: 20,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    marginTop: 2,
-  },
+    // Grid
+    gridRow: { gap: 10, marginBottom: 10 },
+    gridCard: {
+      backgroundColor: colors.card || colors.background,
+      borderRadius: 15,
+      overflow: 'hidden',
+    },
+    gridImage: { height: 120, width: '100%' },
+    gridBody: { padding: 8, gap: 4 },
+    gridName: { fontWeight: '700', fontSize: 13, color: colors.text },
+    gridLocation: { fontSize: 11, color: colors.textSecondary },
+    gridRatingPill: {
+      alignSelf: 'flex-start',
+      borderRadius: 20,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+      marginTop: 2,
+    },
 
-  // List
-  listCard: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginBottom: 16,
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  listImage: { height: 120, width: 120 },
-  listBody: { flex: 1, padding: 12, gap: 4, justifyContent: 'center' },
-  listName: { fontSize: 14, fontWeight: '700' },
-  listLocation: { color: '#9ca3af', fontSize: 12 },
+    // List
+    listCard: {
+      backgroundColor: colors.card || colors.background,
+      borderRadius: 15,
+      marginBottom: 16,
+      flexDirection: 'row',
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      elevation: 3,
+      overflow: 'hidden',
+    },
+    listImage: { height: 120, width: 120 },
+    listBody: { flex: 1, padding: 12, gap: 4, justifyContent: 'center' },
+    listName: { fontSize: 14, fontWeight: '700', color: colors.text },
+    listLocation: { color: colors.textSecondary, fontSize: 12 },
 
-  // Switcher
-  switcher: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#f9fafb',
-    marginBottom: 4,
-  },
-  switcherTitle: { fontSize: 14, fontWeight: '700' },
-  switcherButtons: { flexDirection: 'row', gap: 2 },
-  switchBtn: {
-    width: 36, height: 36, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  switchBtnActive: { backgroundColor: `${PURPLE}18` },
-  switchIcon: { fontSize: 18, color: '#9ca3af' },
-  switchIconActive: { color: PURPLE },
+    // Switcher
+    switcher: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      marginBottom: 4,
+    },
+    switcherTitle: { fontSize: 14, fontWeight: '700' },
+    switcherButtons: { flexDirection: 'row', gap: 2 },
+    switchBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    switchBtnActive: {},
+    switchIcon: { fontSize: 18, color: colors.textSecondary },
 
-  // Empty state
-  emptyWrap: { alignItems: 'center', padding: 40 },
-  emptyIconWrap: {
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: `${PURPLE}1a`,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyIcon: { fontSize: 44 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', marginBottom: 10 },
-  emptySubtitle: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 28 },
-  refreshBtn: {
-    backgroundColor: PURPLE,
-    borderRadius: 12,
-    paddingHorizontal: 24, paddingVertical: 12,
-  },
-  refreshBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+    // Empty state
+    emptyWrap: { alignItems: 'center', padding: 40 },
+    emptyIconWrap: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+    },
+    emptyIcon: { fontSize: 44 },
+    emptyTitle: { fontSize: 22, fontWeight: '700', marginBottom: 10 },
+    emptySubtitle: { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 28 },
+    refreshBtn: {
+      borderRadius: 12,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+    },
+    refreshBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 
-  // Network error
-  networkErrorWrap: { alignItems: 'center', padding: 32, gap: 12 },
-  networkErrorText: { color: '#ef4444', fontSize: 15 },
-  retryBtn: {
-    backgroundColor: PURPLE,
-    borderRadius: 10,
-    paddingHorizontal: 20, paddingVertical: 10,
-  },
-  retryBtnText: { color: '#fff', fontWeight: '600' },
+    // Network error
+    networkErrorWrap: { alignItems: 'center', padding: 32, gap: 12 },
+    networkErrorText: { fontSize: 15 },
+    retryBtn: {
+      borderRadius: 10,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+    retryBtnText: { color: '#fff', fontWeight: '600' },
 
-  loadingWrap: {
-    alignItems: 'center',
-    padding: 40,
-    gap: 16,
-  },
-  loadingText: {
-    color: '#6b7280',
-    fontSize: 15,
-  },
-});
+    // Loading
+    loadingWrap: { alignItems: 'center', padding: 40, gap: 16 },
+    loadingText: { fontSize: 15 },
+  });
+};

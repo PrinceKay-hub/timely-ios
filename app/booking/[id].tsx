@@ -4,25 +4,29 @@ import { BookingHeader } from '@/components/booking/BookingHeader';
 import { useBookingFormStore } from '@/stores/bookingFormStore';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { getServiceById } from '../../data/repositories/serviceRepository';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export default function BookingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isLoading, error, successMessage, clearMessages } = useBookingStore();
-  const { setProviderData, isProviderDataLoaded  } = useBookingFormStore();
+  const { setProviderData, isProviderDataLoaded } = useBookingFormStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-      const fetchData = async () => {
-        // Fetch the full service details using serviceId
-        setLoading(true);
-        if(id) {
-          try {
+    const fetchData = async () => {
+      setLoading(true);
+      if (id) {
+        try {
           const serviceData = await getServiceById(id);
           setProviderData(serviceData);
         } catch (error) {
@@ -31,12 +35,10 @@ export default function BookingScreen() {
         } finally {
           setLoading(false);
         }
-        }
-      };
-  
-      fetchData();
-    }, [id]);
-
+      }
+    };
+    fetchData();
+  }, [id]);
 
   // Handle errors
   useEffect(() => {
@@ -60,21 +62,21 @@ export default function BookingScreen() {
   if (!isProviderDataLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={PURPLE} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (loading) {
-      return (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={PURPLE} />
-        </View>
-      );
-    }
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <BookingHeader />
       <View style={styles.formContainer}>
         <BookingForm />
@@ -89,15 +91,17 @@ export default function BookingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  formContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    formContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
+    loadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,107 +16,21 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'expo-router';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const PURPLE = '#8B5CF6';
-const BG = '#f5f5f5';
-const SURFACE = '#ffffff';
-const BORDER = '#e0e0e0';
-const TEXT_PRIMARY = '#333333';
-const TEXT_MUTED = '#6b7280';
-const ERROR = '#ef4444';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface Props { onToggle: () => void }
 
-// ─── Snackbar ─────────────────────────────────────────────────────────────────
-const Snackbar = ({ message, visible }: { message: string; visible: boolean }) => {
-  const translateY = React.useRef(new Animated.Value(100)).current;
-  const opacity = React.useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(translateY, { toValue: visible ? 0 : 100, useNativeDriver: true, tension: 80, friction: 10 }),
-      Animated.timing(opacity, { toValue: visible ? 1 : 0, duration: 200, useNativeDriver: true }),
-    ]).start();
-  }, [visible]);
-
-  return (
-    <Animated.View style={[styles.snackbar, { transform: [{ translateY }], opacity }]}>
-      <Ionicons name="alert-circle-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-      <Text style={styles.snackbarText}>{message}</Text>
-    </Animated.View>
-  );
-};
-
-// ─── Field ────────────────────────────────────────────────────────────────────
-interface FieldProps {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder: string;
-  error?: string | null;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  secureTextEntry?: boolean;
-  keyboardType?: 'default' | 'email-address';
-  autoCapitalize?: 'none' | 'words';
-  autoComplete?: 'email' | 'password' | 'name' | 'off';
-  rightIcon?: React.ReactNode;
-}
-
-const Field = ({
-  label, value, onChangeText, placeholder, error,
-  icon, secureTextEntry = false, keyboardType = 'default',
-  autoCapitalize = 'none', autoComplete = 'off', rightIcon,
-}: FieldProps) => (
-  <View style={fieldStyles.wrap}>
-    <Text style={fieldStyles.label}>{label}</Text>
-    <View style={[fieldStyles.container, !!error && fieldStyles.errored]}>
-      <Ionicons name={icon} size={18} color="#b0a8c8" style={fieldStyles.icon} />
-      <TextInput
-        style={fieldStyles.input}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#c0b8d8"
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        autoComplete={autoComplete}
-        autoCorrect={false}
-      />
-      {rightIcon && <View style={fieldStyles.right}>{rightIcon}</View>}
-    </View>
-    {!!error && (
-      <View style={fieldStyles.errorRow}>
-        <Ionicons name="alert-circle-outline" size={12} color={ERROR} />
-        <Text style={fieldStyles.errorText}>{error}</Text>
-      </View>
-    )}
-  </View>
-);
-
-const fieldStyles = StyleSheet.create({
-  wrap: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: TEXT_PRIMARY, marginBottom: 6, letterSpacing: 0.2 },
-  container: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FAF9FC', borderRadius: 12,
-    borderWidth: 1.5, borderColor: BORDER, paddingHorizontal: 14,
-  },
-  errored: { borderColor: ERROR, backgroundColor: '#FFF8F8' },
-  icon: { marginRight: 10 },
-  input: { flex: 1, paddingVertical: Platform.OS === 'ios' ? 14 : 11, fontSize: 14, color: TEXT_PRIMARY },
-  right: { paddingLeft: 8 },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
-  errorText: { fontSize: 12, color: ERROR },
-});
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SignUpScreen({ onToggle }: Props) {
   const router = useRouter();
   const { promptAsync } = useGoogleAuth();
   const { signUpWithEmail, signInWithGoogle, signInWithApple, isLoading, error, user } = useAuthStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
 
+  // ─── Dynamic styles ──────────────────────────────────────────────────────
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // ─── State ──────────────────────────────────────────────────────────────
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -129,22 +43,73 @@ export default function SignUpScreen({ onToggle }: Props) {
   const [snackbarMsg, setSnackbarMsg] = useState('');
   const [appleAvailable, setAppleAvailable] = useState(false);
 
-  // ── Check Apple availability ───────────────────────────────────────────────
+  // ─── Snackbar (nested) ──────────────────────────────────────────────────
+  const Snackbar = ({ message, visible }: { message: string; visible: boolean }) => {
+    const translateY = useRef(new Animated.Value(100)).current;
+    const opacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      Animated.parallel([
+        Animated.spring(translateY, { toValue: visible ? 0 : 100, useNativeDriver: true, tension: 80, friction: 10 }),
+        Animated.timing(opacity, { toValue: visible ? 1 : 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }, [visible]);
+
+    return (
+      <Animated.View style={[styles.snackbar, { backgroundColor: colors.error || '#ef4444', transform: [{ translateY }], opacity }]}>
+        <Ionicons name="alert-circle-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+        <Text style={styles.snackbarText}>{message}</Text>
+      </Animated.View>
+    );
+  };
+
+  // ─── Field (nested) ──────────────────────────────────────────────────────
+  const Field = ({
+    label, value, onChangeText, placeholder, error,
+    icon, secureTextEntry = false, keyboardType = 'default',
+    autoCapitalize = 'none', autoComplete = 'off', rightIcon,
+  }: any) => (
+    <View style={styles.fieldWrap}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={[styles.fieldContainer, !!error && styles.fieldError]}>
+        <Ionicons name={icon} size={18} color={colors.textSecondary || '#b0a8c8'} style={styles.fieldIcon} />
+        <TextInput
+          style={styles.fieldInput}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary || '#c0b8d8'}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          autoComplete={autoComplete}
+          autoCorrect={false}
+        />
+        {rightIcon && <View style={styles.fieldRight}>{rightIcon}</View>}
+      </View>
+      {!!error && (
+        <View style={styles.fieldErrorRow}>
+          <Ionicons name="alert-circle-outline" size={12} color={colors.error || '#ef4444'} />
+          <Text style={[styles.fieldErrorText, { color: colors.error || '#ef4444' }]}>{error}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  // ─── Effects ─────────────────────────────────────────────────────────────
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
   }, []);
 
-  // ── Auth store errors → snackbar ───────────────────────────────────────────
   useEffect(() => {
     if (error) showSnack(error);
   }, [error]);
 
-  // ── Redirect on Signup ──────────────────────────────────────────────────────
-    useEffect(() => {
-      if (user) router.replace('/(tabs)/home');
-    }, [user, router]);
+  useEffect(() => {
+    if (user) router.replace('/(tabs)/home');
+  }, [user, router]);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────────────────────────
   const showSnack = (msg: string) => {
     setSnackbarMsg(msg);
     setSnackbarVisible(true);
@@ -164,7 +129,7 @@ export default function SignUpScreen({ onToggle }: Props) {
     return Object.keys(errors).length === 0;
   };
 
-  // ── Email sign-up ──────────────────────────────────────────────────────────
+  // ─── Handlers ────────────────────────────────────────────────────────────
   const handleSignUp = async () => {
     if (!validate()) return;
     if (!agreeToTerms) {
@@ -174,7 +139,6 @@ export default function SignUpScreen({ onToggle }: Props) {
     await signUpWithEmail(email, password, name, 'client');
   };
 
-  // ── Google sign-up ─────────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
     const result = await promptAsync();
     if (result.type === 'cancelled') return;
@@ -185,7 +149,6 @@ export default function SignUpScreen({ onToggle }: Props) {
     await signInWithGoogle(result.idToken);
   };
 
-  // ── Apple sign-up ──────────────────────────────────────────────────────────
   const handleAppleLogin = async () => {
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -194,18 +157,10 @@ export default function SignUpScreen({ onToggle }: Props) {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-
       const fullName = credential.fullName
-        ? [credential.fullName.givenName, credential.fullName.familyName]
-            .filter(Boolean)
-            .join(' ')
+        ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(' ')
         : null;
-
-      await signInWithApple(
-        credential.identityToken!,
-        fullName,
-        credential.email,
-      );
+      await signInWithApple(credential.identityToken!, fullName, credential.email);
     } catch (e: any) {
       if (e.code !== 'ERR_CANCELED') {
         showSnack('Apple sign-in failed. Please try again.');
@@ -213,19 +168,21 @@ export default function SignUpScreen({ onToggle }: Props) {
     }
   };
 
-  // ── Loading ────────────────────────────────────────────────────────────────
+  // ─── Loading ──────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={PURPLE} />
-        <Text style={styles.loadingText}>Creating your account…</Text>
+      <View style={[styles.loading, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Creating your account…</Text>
       </View>
     );
   }
 
+  const isDark = theme.dark;
+
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
@@ -233,19 +190,19 @@ export default function SignUpScreen({ onToggle }: Props) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Logo ── */}
-        <View style={styles.logoWrap}>
-          <Text style={styles.logoIcon}>✂</Text>
+        {/* Logo */}
+        <View style={[styles.logoWrap, { backgroundColor: colors.card || colors.background }]}>
+          <Text style={[styles.logoIcon, { color: colors.primary }]}>✂</Text>
         </View>
 
-        {/* ── Heading ── */}
-        <Text style={styles.heading}>Create Account</Text>
-        <Text style={styles.subheading}>
+        {/* Heading */}
+        <Text style={[styles.heading, { color: colors.text }]}>Create Account</Text>
+        <Text style={[styles.subheading, { color: colors.textSecondary }]}>
           Sign up to start booking your favorite services
         </Text>
 
-        {/* ── Form card ── */}
-        <View style={styles.card}>
+        {/* Form card */}
+        <View style={[styles.card, { backgroundColor: colors.card || colors.background, borderColor: colors.border || '#e0e0e0' }]}>
           <Field
             label="Full Name"
             value={name}
@@ -277,7 +234,7 @@ export default function SignUpScreen({ onToggle }: Props) {
             error={formErrors.password}
             rightIcon={
               <TouchableOpacity onPress={() => setShowPassword(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
+                <Text style={[styles.eyeIcon, { color: colors.textSecondary }]}>{showPassword ? '🙈' : '👁'}</Text>
               </TouchableOpacity>
             }
           />
@@ -292,60 +249,56 @@ export default function SignUpScreen({ onToggle }: Props) {
             error={formErrors.confirmPassword}
             rightIcon={
               <TouchableOpacity onPress={() => setShowConfirmPassword(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.eyeIcon}>{showConfirmPassword ? '🙈' : '👁'}</Text>
+                <Text style={[styles.eyeIcon, { color: colors.textSecondary }]}>{showConfirmPassword ? '🙈' : '👁'}</Text>
               </TouchableOpacity>
             }
           />
 
-          {/* ── Terms ── */}
+          {/* Terms */}
           <TouchableOpacity style={styles.termsRow} onPress={() => setAgreeToTerms(v => !v)} activeOpacity={0.7}>
             <View style={[styles.checkbox, agreeToTerms && styles.checkboxActive]}>
               {agreeToTerms && <Ionicons name="checkmark" size={13} color="#fff" />}
             </View>
-            <Text style={styles.termsText}>
+            <Text style={[styles.termsText, { color: colors.textSecondary }]}>
               I agree to the{' '}
-              <Text style={styles.termsLink} onPress={() => router.push('/terms')}>Terms & Conditions</Text>
+              <Text style={[styles.termsLink, { color: colors.primary }]} onPress={() => router.push('/terms')}>Terms & Conditions</Text>
               {' '}and{' '}
-              <Text style={styles.termsLink} onPress={() => router.push('/privacy')}>Privacy Policy</Text>
+              <Text style={[styles.termsLink, { color: colors.primary }]} onPress={() => router.push('/privacy')}>Privacy Policy</Text>
             </Text>
           </TouchableOpacity>
 
-          {/* ── Sign Up button ── */}
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleSignUp} activeOpacity={0.85}>
+          {/* Sign Up button */}
+          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={handleSignUp} activeOpacity={0.85}>
             <Text style={styles.primaryBtnText}>Create Account</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ── OR divider ── */}
+        {/* OR divider */}
         <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: colors.border || '#e0e0e0' }]} />
+          <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border || '#e0e0e0' }]} />
         </View>
 
-        {/* ── Social buttons ── */}
+        {/* Social buttons */}
         <View style={styles.socialButtons}>
-          {/* Apple — iOS only */}
           {appleAvailable && (
             <TouchableOpacity style={styles.appleBtn} onPress={handleAppleLogin} activeOpacity={0.85}>
               <Ionicons name="logo-apple" size={20} color="#fff" />
               <Text style={styles.appleBtnText}>Continue with Apple</Text>
             </TouchableOpacity>
           )}
-
-          {/* Google */}
-          <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleLogin} activeOpacity={0.85}>
+          <TouchableOpacity style={[styles.googleBtn, { backgroundColor: colors.card || colors.background, borderColor: colors.border || '#e0e0e0' }]} onPress={handleGoogleLogin} activeOpacity={0.85}>
             <Text style={styles.googleBtnIcon}>G</Text>
-            <Text style={styles.socialBtnText}>Continue with Google</Text>
+            <Text style={[styles.socialBtnText, { color: colors.text }]}>Continue with Google</Text>
           </TouchableOpacity>
-
         </View>
 
-        {/* ── Footer ── */}
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>Already have an account? </Text>
           <TouchableOpacity onPress={onToggle}>
-            <Text style={styles.footerLink}>Sign In</Text>
+            <Text style={[styles.footerLink, { color: colors.primary }]}>Sign In</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -355,89 +308,142 @@ export default function SignUpScreen({ onToggle }: Props) {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
-  scroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 48, paddingBottom: 32 },
-  loading: { flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  loadingText: { color: TEXT_MUTED, fontSize: 14, marginTop: 8 },
-
-  logoWrap: {
-    width: 80, height: 80, borderRadius: 22,
-    backgroundColor: SURFACE, borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.2)',
-    alignItems: 'center', justifyContent: 'center',
-    alignSelf: 'center', marginBottom: 28,
-    shadowColor: PURPLE, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15, shadowRadius: 14, elevation: 4,
-  },
-  logoIcon: { fontSize: 36, color: PURPLE },
-  eyeIcon: { fontSize: 16, color: TEXT_MUTED },
-
-  heading: { fontSize: 30, fontWeight: '700', color: TEXT_PRIMARY, textAlign: 'center', letterSpacing: -0.5, marginBottom: 8 },
-  subheading: { fontSize: 15, color: TEXT_MUTED, textAlign: 'center', lineHeight: 22, marginBottom: 32, paddingHorizontal: 8 },
-
-  card: {
-    backgroundColor: SURFACE, borderRadius: 20, padding: 24,
-    borderWidth: 1, borderColor: BORDER,
-    shadowColor: '#9b8bb4', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1, shadowRadius: 20, elevation: 4,
-  },
-
-  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4, marginBottom: 20 },
-  checkbox: {
-    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5,
-    borderColor: BORDER, alignItems: 'center', justifyContent: 'center',
-    marginTop: 1, flexShrink: 0, backgroundColor: '#FAF9FC',
-  },
-  checkboxActive: { backgroundColor: PURPLE, borderColor: PURPLE },
-  termsText: { flex: 1, fontSize: 13, color: TEXT_MUTED, lineHeight: 20 },
-  termsLink: { color: PURPLE, fontWeight: '600' },
-
-  primaryBtn: {
-    backgroundColor: PURPLE, borderRadius: 12, paddingVertical: 15,
-    alignItems: 'center', shadowColor: PURPLE,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3,
-    shadowRadius: 12, elevation: 5,
-  },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
-
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 28, gap: 14 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: BORDER },
-  dividerText: { fontSize: 11, color: TEXT_MUTED, fontWeight: '600', letterSpacing: 1 },
-
-  socialButtons: { gap: 12 },
-
-  googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10, backgroundColor: SURFACE, borderRadius: 12,
-    paddingVertical: 14, borderWidth: 1.5, borderColor: BORDER,
-    shadowColor: '#9b8bb4', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 6, elevation: 2,
-  },
-  googleBtnIcon: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
-  socialBtnText: { fontSize: 15, fontWeight: '600', color: TEXT_PRIMARY },
-
-  appleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 10, backgroundColor: '#000', borderRadius: 12,
-    paddingVertical: 14, borderWidth: 1, borderColor: '#000',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2, shadowRadius: 6, elevation: 3,
-  },
-  appleBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
-
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 28 },
-  footerText: { fontSize: 14, color: TEXT_MUTED },
-  footerLink: { fontSize: 14, color: PURPLE, fontWeight: '700' },
-
-  snackbar: {
-    position: 'absolute', bottom: 24, left: 20, right: 20,
-    backgroundColor: ERROR, borderRadius: 12,
-    paddingVertical: 13, paddingHorizontal: 18,
-    flexDirection: 'row', alignItems: 'center',
-    shadowColor: ERROR, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
-  },
-  snackbarText: { color: '#fff', fontSize: 14, fontWeight: '500', flex: 1 },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    root: { flex: 1 },
+    scroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 48, paddingBottom: 32 },
+    loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+    loadingText: { fontSize: 14, marginTop: 8 },
+    logoWrap: {
+      width: 80,
+      height: 80,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: 'rgba(139,92,246,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'center',
+      marginBottom: 28,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.15,
+      shadowRadius: 14,
+      elevation: 4,
+    },
+    logoIcon: { fontSize: 36 },
+    eyeIcon: { fontSize: 16 },
+    heading: { fontSize: 30, fontWeight: '700', textAlign: 'center', letterSpacing: -0.5, marginBottom: 8 },
+    subheading: { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32, paddingHorizontal: 8 },
+    card: {
+      borderRadius: 20,
+      padding: 24,
+      borderWidth: 1,
+      shadowColor: '#9b8bb4',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 20,
+      elevation: 4,
+    },
+    fieldWrap: { marginBottom: 16 },
+    fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, letterSpacing: 0.2, color: colors.text },
+    fieldContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: colors.border || '#e0e0e0',
+      paddingHorizontal: 14,
+    },
+    fieldError: { borderColor: colors.error || '#ef4444', backgroundColor: `${colors.error}10` },
+    fieldIcon: { marginRight: 10 },
+    fieldInput: { flex: 1, paddingVertical: Platform.OS === 'ios' ? 14 : 11, fontSize: 14, color: colors.text },
+    fieldRight: { paddingLeft: 8 },
+    fieldErrorRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
+    fieldErrorText: { fontSize: 12 },
+    termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4, marginBottom: 20 },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 5,
+      borderWidth: 1.5,
+      borderColor: colors.border || '#e0e0e0',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+      flexShrink: 0,
+      backgroundColor: colors.surface,
+    },
+    checkboxActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    termsText: { flex: 1, fontSize: 13, lineHeight: 20 },
+    termsLink: { fontWeight: '600' },
+    primaryBtn: {
+      borderRadius: 12,
+      paddingVertical: 15,
+      alignItems: 'center',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 5,
+    },
+    primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+    divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 28, gap: 14 },
+    dividerLine: { flex: 1, height: 1 },
+    dividerText: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },
+    socialButtons: { gap: 12 },
+    googleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      borderRadius: 12,
+      paddingVertical: 14,
+      borderWidth: 1.5,
+      shadowColor: '#9b8bb4',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.07,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    googleBtnIcon: { fontSize: 18, fontWeight: '800', color: '#4285F4' },
+    socialBtnText: { fontSize: 15, fontWeight: '600' },
+    appleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      backgroundColor: '#000',
+      borderRadius: 12,
+      paddingVertical: 14,
+      borderWidth: 1,
+      borderColor: '#000',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    appleBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+    footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 28 },
+    footerText: { fontSize: 14 },
+    footerLink: { fontSize: 14, fontWeight: '700' },
+    snackbar: {
+      position: 'absolute',
+      bottom: 24,
+      left: 20,
+      right: 20,
+      borderRadius: 12,
+      paddingVertical: 13,
+      paddingHorizontal: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    snackbarText: { color: '#fff', fontSize: 14, fontWeight: '500', flex: 1 },
+  });

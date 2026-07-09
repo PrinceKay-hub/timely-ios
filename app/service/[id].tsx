@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'react-native-collapsible-tab-view';
+import { Tabs, MaterialTabBar } from 'react-native-collapsible-tab-view';
 import { useAuthStore } from '@/stores/auth';
 import { useFavoriteStore } from '@/stores/favorite';
 import { useReviewStore } from '@/stores/reviewService';
@@ -25,10 +25,10 @@ import { Snackbar } from '@/components/Snackbar';
 import { useEffect } from 'react';
 import { PortfolioTabContent } from '@/components/portfolio/PortfolioTab';
 import GalleryWidget from '@/components/Gallerywidget';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
-const PURPLE = '#8B5CF6';
 
 export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,10 +37,14 @@ export default function DetailScreen() {
   const { favoriteIds, toggleFavorite } = useFavoriteStore();
   const { reviews, fetchReviews, isLoading: reviewsLoading } = useReviewStore();
   const { currentService, isLoading, error, fetchServiceById } = useServiceDataStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
-
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLoadingDirections, setIsLoadingDirections] = useState(false);
   const [snackbar, setSnackbar] = useState<{
@@ -49,34 +53,23 @@ export default function DetailScreen() {
     type: 'error' | 'success' | 'info';
   }>({ visible: false, message: '', type: 'info' });
 
-
-
   const hideSnackbar = () => {
     setSnackbar(prev => ({ ...prev, visible: false }));
   };
 
   // Load service data
-  React.useEffect(() => {
+  useEffect(() => {
     if (id) fetchServiceById(id as string);
   }, [id]);
 
-
   // Fetch reviews when providerId is available
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentService?.providerId) {
       fetchReviews(currentService.providerId);
     }
   }, [currentService]);
 
   const isFavorite = favoriteIds.has(currentService?.id || '');
-
-
-  // Load reviews
-  React.useEffect(() => {
-    if (currentService?.providerId) {
-      fetchReviews(currentService.providerId);
-    }
-  }, [currentService]);
 
   const handleBack = () => router.back();
 
@@ -130,60 +123,43 @@ export default function DetailScreen() {
   };
 
   const handleDirections = async () => {
-  if (!currentService?.latitude || !currentService?.longitude) {
-    Alert.alert('Error', 'Location not available');
-    return;
-  }
-  setIsLoadingDirections(true);
-  try {
-    const lat = currentService.latitude;
-    const lng = currentService.longitude;
-    const label = encodeURIComponent(currentService.name || 'Destination');
-
-    if (Platform.OS === 'ios') {
-      // Try Apple Maps first, fallback to Google Maps app, then web
-      const appleMapsUrl = `maps://?daddr=${lat},${lng}&dirflg=d`;
-      const googleMapsAppUrl = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
-      const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-
-    //  const appleSupported = await Linking.canOpenURL(appleMapsUrl);
-    //  if (appleSupported) {
-     //   await Linking.openURL(appleMapsUrl);
-      //  return;
-     // }
-
-      const googleAppSupported = await Linking.canOpenURL(googleMapsAppUrl);
-      if (googleAppSupported) {
-        await Linking.openURL(googleMapsAppUrl);
-        return;
-      }
-
-      // Final fallback — always works
-      await Linking.openURL(googleMapsWebUrl);
-
-    } else {
-      // Android — try Google Maps app first, fallback to web
-      const googleMapsAppUrl = `google.navigation:q=${lat},${lng}&mode=d`;
-      const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-
-      const supported = await Linking.canOpenURL(googleMapsAppUrl);
-      if (supported) {
-        await Linking.openURL(googleMapsAppUrl);
-      } else {
-        await Linking.openURL(googleMapsWebUrl);
-      }
+    if (!currentService?.latitude || !currentService?.longitude) {
+      Alert.alert('Error', 'Location not available');
+      return;
     }
-  } catch (error) {
-    // Ultimate fallback if everything above fails
-    const lat = currentService.latitude;
-    const lng = currentService.longitude;
-    await Linking.openURL(
-      `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-    ).catch(() => Alert.alert('Error', 'Could not open maps application'));
-  } finally {
-    setIsLoadingDirections(false);
-  }
-};
+    setIsLoadingDirections(true);
+    try {
+      const lat = currentService.latitude;
+      const lng = currentService.longitude;
+      if (Platform.OS === 'ios') {
+        const googleMapsAppUrl = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
+        const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+        const googleAppSupported = await Linking.canOpenURL(googleMapsAppUrl);
+        if (googleAppSupported) {
+          await Linking.openURL(googleMapsAppUrl);
+          return;
+        }
+        await Linking.openURL(googleMapsWebUrl);
+      } else {
+        const googleMapsAppUrl = `google.navigation:q=${lat},${lng}&mode=d`;
+        const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+        const supported = await Linking.canOpenURL(googleMapsAppUrl);
+        if (supported) {
+          await Linking.openURL(googleMapsAppUrl);
+        } else {
+          await Linking.openURL(googleMapsWebUrl);
+        }
+      }
+    } catch (error) {
+      const lat = currentService.latitude;
+      const lng = currentService.longitude;
+      await Linking.openURL(
+        `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+      ).catch(() => Alert.alert('Error', 'Could not open maps application'));
+    } finally {
+      setIsLoadingDirections(false);
+    }
+  };
 
   const handleBook = () => {
     if (!user?.emailVerified) {
@@ -193,14 +169,14 @@ export default function DetailScreen() {
     router.push({
       pathname: '/booking/[id]',
       params: { id: currentService?.id }
-    })
+    });
   };
 
-  // Loading and error states
+  // ── Loading and error states ───────────────────────────────────────────────
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={PURPLE} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -208,9 +184,9 @@ export default function DetailScreen() {
   if (error) {
     return (
       <View style={styles.loading}>
-        <Text style={{ color: 'red' }}>Error: {error}</Text>
+        <Text style={{ color: colors.error || 'red' }}>Error: {error}</Text>
         <TouchableOpacity onPress={() => id && fetchServiceById(id as string)}>
-          <Text style={{ color: PURPLE, marginTop: 10 }}>Retry</Text>
+          <Text style={{ color: colors.primary, marginTop: 10 }}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -219,11 +195,23 @@ export default function DetailScreen() {
   if (!currentService) {
     return (
       <View style={styles.loading}>
-        <Text>Service not found</Text>
+        <Text style={{ color: colors.text }}>Service not found</Text>
       </View>
     );
   }
 
+  // ─── QuickAction helper (nested to access styles) ─────────────────────────
+  const QuickAction = ({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) => (
+    <TouchableOpacity
+      style={[styles.quickAction, { backgroundColor: colors.card, shadowColor: colors.shadow || '#000' }]}
+      onPress={onPress}
+    >
+      <Ionicons name={icon as any} size={24} color={colors.primary} />
+      <Text style={[styles.quickActionLabel, { color: colors.text }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+
+  // ── Render Header ─────────────────────────────────────────────────────────
   const renderHeader = () => (
     <View style={styles.header}>
       <FlatList
@@ -249,24 +237,28 @@ export default function DetailScreen() {
         keyExtractor={(_, i) => i.toString()}
       />
       <View style={styles.headerOverlay}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name="arrow-back" size={24} color="black" />
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: colors.card }]} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
           {currentService?.providerId !== user?.uid && (
-            <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.card }]}
+              onPress={handleToggleFavorite}
+            >
               <Ionicons
                 name={isFavorite ? 'heart' : 'heart-outline'}
                 size={24}
-                color={isFavorite ? 'red' : 'black'}
+                color={isFavorite ? 'red' : colors.text}
               />
             </TouchableOpacity>
           )}
-         
-           <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={24} color="black" />
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.card }]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-outline" size={24} color={colors.text} />
           </TouchableOpacity>
-          
         </View>
         {currentService?.images && currentService.images.length > 1 && (
           <View style={styles.indicatorContainer}>
@@ -285,26 +277,32 @@ export default function DetailScreen() {
     </View>
   );
 
+  // ── Render About Tab ─────────────────────────────────────────────────────
   const renderAbout = () => (
-    <Tabs.ScrollView style={styles.tabContent}>
-      <View style={styles.card}>
+    <Tabs.ScrollView style={[styles.tabContent, { backgroundColor: colors.surface }]}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.rowBetween}>
-          <Text style={styles.name}>{currentService?.name}</Text>
+          <Text style={[styles.name, { color: colors.text }]}>{currentService?.name}</Text>
         </View>
-        <View style={styles.categoryChip}>
-          <Ionicons name="cut" size={16} color={PURPLE} />
-          <Text style={styles.categoryText}>{currentService?.category}</Text>
+        <View style={[styles.categoryChip, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
+          <Ionicons name="cut" size={16} color={colors.primary} />
+          <Text style={[styles.categoryText, { color: colors.primary }]}>{currentService?.category}</Text>
         </View>
         <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={20} color={PURPLE} />
-          <Text style={styles.locationText}>{currentService?.location}</Text>
+          <Ionicons name="location-outline" size={20} color={colors.primary} />
+          <Text style={[styles.locationText, { color: colors.textSecondary }]}>{currentService?.location}</Text>
         </View>
         <View style={styles.ratingRow}>
           <Ionicons name="star" size={16} color="gold" />
-          <Text style={styles.ratingText}>{currentService?.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>({currentService?.totalReviews} reviews)</Text>
+          <Text style={[styles.ratingText, { color: colors.text }]}>{currentService?.rating.toFixed(1)}</Text>
+          <Text style={[styles.reviewCount, { color: colors.textSecondary }]}>
+            ({currentService?.totalReviews} reviews)
+          </Text>
           {currentService?.providerId !== user?.uid && (
-            <TouchableOpacity style={styles.bookButton} onPress={handleBook}>
+            <TouchableOpacity
+              style={[styles.bookButton, { backgroundColor: colors.primary }]}
+              onPress={handleBook}
+            >
               <Text style={styles.bookButtonText}>Book</Text>
             </TouchableOpacity>
           )}
@@ -318,38 +316,38 @@ export default function DetailScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Description</Text>
-        <Text style={styles.description}>{currentService?.description}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
+        <Text style={[styles.description, { color: colors.textSecondary }]}>{currentService?.description}</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Services & Pricing</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Services & Pricing</Text>
         {currentService?.services.map((s, i) => (
-          <View key={i} style={styles.serviceItem}>
-            <View style={styles.serviceIcon}>
-              <Ionicons name="cut" size={20} color={PURPLE} />
+          <View key={i} style={[styles.serviceItem, { backgroundColor: colors.surface }]}>
+            <View style={[styles.serviceIcon, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
+              <Ionicons name="cut" size={20} color={colors.primary} />
             </View>
             <View style={styles.serviceInfo}>
-              <Text style={styles.serviceName}>{s.name}</Text>
-              <Text style={styles.serviceDuration}>{s.duration} mins</Text>
+              <Text style={[styles.serviceName, { color: colors.text }]}>{s.name}</Text>
+              <Text style={[styles.serviceDuration, { color: colors.textSecondary }]}>{s.duration} mins</Text>
             </View>
-            <Text style={styles.servicePrice}>₵{s.price}</Text>
+            <Text style={[styles.servicePrice, { color: colors.primary }]}>₵{s.price}</Text>
           </View>
         ))}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Business Hours</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Business Hours</Text>
         {currentService && <WorkingHoursDisplay service={currentService} />}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Amenities</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Amenities</Text>
         <View style={styles.amenitiesWrap}>
           {currentService?.amenities.map((a, i) => (
-            <View key={i} style={styles.amenityChip}>
-              <Ionicons name="checkmark-circle" size={16} color={PURPLE} />
-              <Text style={styles.amenityText}>{a}</Text>
+            <View key={i} style={[styles.amenityChip, { backgroundColor: colors.surface }]}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+              <Text style={[styles.amenityText, { color: colors.textSecondary }]}>{a}</Text>
             </View>
           ))}
         </View>
@@ -357,9 +355,10 @@ export default function DetailScreen() {
     </Tabs.ScrollView>
   );
 
+  // ── Render Reviews Tab ────────────────────────────────────────────────────
   const renderReviews = () => (
-    <Tabs.ScrollView style={styles.tabContent}>
-      <View style={styles.reviewSummary}>
+    <Tabs.ScrollView style={[styles.tabContent, { backgroundColor: colors.surface }]}>
+      <View style={[styles.reviewSummary, { backgroundColor: colors.primary }]}>
         <Text style={styles.ratingLarge}>{currentService?.rating.toFixed(1)}</Text>
         <View style={styles.starRow}>
           {[1, 2, 3, 4, 5].map(i => (
@@ -369,44 +368,56 @@ export default function DetailScreen() {
         <Text style={styles.reviewBaseText}>Based on {currentService?.totalReviews} reviews</Text>
       </View>
 
-      {reviewsLoading && <ActivityIndicator style={{ marginTop: 20 }} />}
+      {reviewsLoading && <ActivityIndicator style={{ marginTop: 20 }} color={colors.primary} />}
 
-      {reviews.length === 0 && 
-      <View style={styles.center}>
-        <Ionicons name="images-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyTitle}>No Reviews Yet</Text>
-        <Text style={styles.emptyText}>
-          Engage with service to write review.
-        </Text>
-      </View>}
+      {reviews.length === 0 && (
+        <View style={styles.center}>
+          <Ionicons name="images-outline" size={64} color={colors.textSecondary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No Reviews Yet</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            Engage with service to write review.
+          </Text>
+        </View>
+      )}
       {reviews.map((review, i) => (
-        <View key={i} style={styles.reviewCard}>
+        <View key={i} style={[styles.reviewCard, { backgroundColor: colors.card }]}>
           <View style={styles.reviewHeader}>
-            <View style={styles.reviewerAvatar}>
-              <Text style={styles.reviewerInitial}>{review.userName?.[0]}</Text>
+            <View style={[styles.reviewerAvatar, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.reviewerInitial, { color: colors.primary }]}>
+                {review.userName?.[0]}
+              </Text>
             </View>
             <View style={styles.reviewerInfo}>
-              <Text style={styles.reviewerName}>{review.userName}</Text>
-              <Text style={styles.reviewDate}>{formatDate(review.createdAt)}</Text>
+              <Text style={[styles.reviewerName, { color: colors.text }]}>{review.userName}</Text>
+              <Text style={[styles.reviewDate, { color: colors.textSecondary }]}>{formatDate(review.createdAt)}</Text>
             </View>
-            <View style={styles.reviewRating}>
+            <View style={[styles.reviewRating, { backgroundColor: colors.surface }]}>
               <Ionicons name="star" size={14} color="gold" />
-              <Text style={styles.reviewRatingText}>{review.rating}</Text>
+              <Text style={[styles.reviewRatingText, { color: colors.text }]}>{review.rating}</Text>
             </View>
           </View>
-          <Text style={styles.reviewText}>{review.comment}</Text>
+          <Text style={[styles.reviewText, { color: colors.textSecondary }]}>{review.comment}</Text>
         </View>
       ))}
     </Tabs.ScrollView>
   );
 
-
+  // ── Main Render ───────────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <Tabs.Container
         renderHeader={renderHeader}
         headerHeight={HEADER_HEIGHT}
         initialTabName="About"
+        renderTabBar={(props) => (
+          <MaterialTabBar
+            {...props}
+            style={{ backgroundColor: colors.surface }}
+            activeColor={colors.primary} 
+            inactiveColor={colors.text} 
+            indicatorStyle={{ backgroundColor: colors.primary }}
+          />
+        )}
       >
         <Tabs.Tab name="About" label="About">
           {renderAbout()}
@@ -432,7 +443,7 @@ export default function DetailScreen() {
         visible={snackbar.visible}
         type={snackbar.type}
         onHide={hideSnackbar}
-        duration={3000} // or Infinity if you want to control dismissal manually
+        duration={3000}
       />
       {galleryVisible && (
         <GalleryWidget
@@ -445,14 +456,7 @@ export default function DetailScreen() {
   );
 }
 
-// Helper component for quick actions
-const QuickAction = ({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) => (
-  <TouchableOpacity style={styles.quickAction} onPress={onPress}>
-    <Ionicons name={icon as any} size={24} color={PURPLE} />
-    <Text style={styles.quickActionLabel}>{label}</Text>
-  </TouchableOpacity>
-);
-
+// ─── Date formatting helper ─────────────────────────────────────────────────
 const formatDate = (timestamp: any) => {
   const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
   const now = new Date();
@@ -472,199 +476,200 @@ const formatDate = (timestamp: any) => {
   return years === 1 ? '1 year ago' : `${years} years ago`;
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  headerContainer: { backgroundColor: 'white' },
-  header: { width, height: HEADER_HEIGHT, backgroundColor: '#ddd' },
-  headerImage: { width, height: HEADER_HEIGHT, resizeMode: 'cover' },
-  headerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: 40,
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-  },
-  headerActions: { flexDirection: 'row', gap: 12 },
-  actionButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-  },
-  indicatorContainer: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-  },
-  activeIndicator: {
-    backgroundColor: PURPLE,
-    width: 16,
-  },
-  tabBar: { backgroundColor: 'white' },
-  tabContent: { backgroundColor: '#f5f5f5', padding: 16 },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  name: { fontSize: 24, fontWeight: 'bold', flex: 1 },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDE9FE',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 12,
-  },
-  categoryText: { color: PURPLE, fontWeight: '600', fontSize: 13, marginLeft: 6 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
-  locationText: { color: 'gray', fontSize: 14, marginLeft: 8, flex: 1 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  ratingText: { fontWeight: 'bold', marginLeft: 4 },
-  reviewCount: { color: 'gray', fontSize: 12, marginLeft: 4 },
-  bookButton: {
-    marginLeft: 'auto',
-    backgroundColor: PURPLE,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  bookButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  quickAction: {
-    flex: 1,
-    backgroundColor: 'white',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  quickActionLabel: { fontSize: 12, fontWeight: '500', marginTop: 8 },
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  description: { color: 'gray', fontSize: 14, lineHeight: 22 },
-  serviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  serviceIcon: {
-    backgroundColor: '#EDE9FE',
-    padding: 8,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  serviceInfo: { flex: 1 },
-  serviceName: { fontWeight: '600', fontSize: 15 },
-  serviceDuration: { color: 'gray', fontSize: 12 },
-  servicePrice: { fontWeight: 'bold', fontSize: 16, color: PURPLE },
-  amenitiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  amenityChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  amenityText: { color: PURPLE, fontSize: 12, fontWeight: '500', marginLeft: 4 },
-  reviewSummary: {
-    backgroundColor: PURPLE,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  ratingLarge: { fontSize: 48, fontWeight: 'bold', color: 'white' },
-  starRow: { flexDirection: 'row', marginVertical: 8 },
-  reviewBaseText: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
-  reviewCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-  },
-  reviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  reviewerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  reviewerInitial: { fontSize: 20, fontWeight: 'bold', color: PURPLE },
-  reviewerInfo: { flex: 1 },
-  reviewerName: { fontWeight: 'bold', fontSize: 15 },
-  reviewDate: { color: 'gray', fontSize: 12 },
-  reviewRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  reviewRatingText: { fontWeight: 'bold', marginLeft: 4 },
-  reviewText: { fontSize: 14, lineHeight: 20 },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  center: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface },
+    headerContainer: { backgroundColor: colors.card },
+    header: { width, height: HEADER_HEIGHT, backgroundColor: colors.surface },
+    headerImage: { width, height: HEADER_HEIGHT, resizeMode: 'cover' },
+    headerOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingTop: 40,
+      paddingHorizontal: 16,
+    },
+    backButton: {
+      borderRadius: 20,
+      padding: 8,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    headerActions: { flexDirection: 'row', gap: 12 },
+    actionButton: {
+      borderRadius: 20,
+      padding: 8,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    indicatorContainer: {
+      position: 'absolute',
+      bottom: 16,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    indicator: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: 'rgba(255,255,255,0.5)',
+    },
+    activeIndicator: {
+      backgroundColor: colors.primary,
+      width: 16,
+    },
+    tabContent: { padding: 16 },
+    card: {
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 16,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    name: { fontSize: 24, fontWeight: 'bold', flex: 1 },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginTop: 12,
+    },
+    categoryText: { fontWeight: '600', fontSize: 13, marginLeft: 6 },
+    locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
+    locationText: { fontSize: 14, marginLeft: 8, flex: 1 },
+    ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+    ratingText: { fontWeight: 'bold', marginLeft: 4 },
+    reviewCount: { fontSize: 12, marginLeft: 4 },
+    bookButton: {
+      marginLeft: 'auto',
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderRadius: 10,
+    },
+    bookButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    quickActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 24,
+    },
+    quickAction: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 16,
+      borderRadius: 12,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    quickActionLabel: { fontSize: 12, fontWeight: '500', marginTop: 8 },
+    section: { marginBottom: 24 },
+    sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+    description: { fontSize: 14, lineHeight: 22 },
+    serviceItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    serviceIcon: {
+      padding: 8,
+      borderRadius: 8,
+      marginRight: 12,
+    },
+    serviceInfo: { flex: 1 },
+    serviceName: { fontWeight: '600', fontSize: 15 },
+    serviceDuration: { fontSize: 12 },
+    servicePrice: { fontWeight: 'bold', fontSize: 16 },
+    amenitiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    amenityChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    amenityText: { fontSize: 12, fontWeight: '500', marginLeft: 4 },
+    reviewSummary: {
+      borderRadius: 20,
+      padding: 20,
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    ratingLarge: { fontSize: 48, fontWeight: 'bold', color: 'white' },
+    starRow: { flexDirection: 'row', marginVertical: 8 },
+    reviewBaseText: { color: 'rgba(255,255,255,0.8)', fontSize: 14 },
+    reviewCard: {
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 1,
+    },
+    reviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+    reviewerAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    reviewerInitial: { fontSize: 20, fontWeight: 'bold' },
+    reviewerInfo: { flex: 1 },
+    reviewerName: { fontWeight: 'bold', fontSize: 15 },
+    reviewDate: { fontSize: 12 },
+    reviewRating: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
+    reviewRatingText: { fontWeight: 'bold', marginLeft: 4 },
+    reviewText: { fontSize: 14, lineHeight: 20 },
+    loadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginTop: 16,
+    },
+    emptyText: {
+      fontSize: 14,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+    center: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+  });

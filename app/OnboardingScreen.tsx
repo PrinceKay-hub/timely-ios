@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTheme } from '@/providers/ThemeProvider';
+import { useColorScheme } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,7 +23,6 @@ type RootStackParamList = {
   Auth: undefined;
   MainTabs: undefined;
 };
-
 
 interface OnboardingItem {
   id: string;
@@ -72,6 +73,13 @@ export default function OnboardingScreen() {
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const router = useRouter();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const colorScheme = useColorScheme();
+  const isDark = theme.dark;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const viewableItemsChanged = useRef(({ viewableItems }: any) => {
     setCurrentIndex(viewableItems[0].index);
@@ -97,7 +105,7 @@ export default function OnboardingScreen() {
 
   const finishOnboarding = async () => {
     await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-    router.replace('/AuthWrapper'); // or go to main app if already authenticated
+    router.replace('/AuthWrapper');
   };
 
   const renderItem = ({ item, index }: { item: OnboardingItem; index: number }) => {
@@ -115,18 +123,15 @@ export default function OnboardingScreen() {
       <View style={[styles.slide, { width }]}>
         <Animated.View style={[styles.illustrationContainer, { transform: [{ scale }], opacity }]}>
           <View style={[styles.circleBackground, { backgroundColor: item.color + '20' }]}>
-            {/* Floating elements (simplified – you can add more with absolute positioned icons) */}
             <View style={[styles.mainIcon, { backgroundColor: item.color }]}>
               <Ionicons name={item.icon} size={70} color="white" />
             </View>
-            {/* Add some floating icons for decoration (optional) */}
             {item.illustration === 'search' && (
               <>
                 <Ionicons name="location" size={24} color={item.color} style={[styles.floating, { top: 30, left: 40 }]} />
                 <Ionicons name="star" size={24} color={item.color} style={[styles.floating, { bottom: 50, right: 40 }]} />
               </>
             )}
-            {/* ... other illustrations */}
           </View>
         </Animated.View>
         <Text style={[styles.title, { color: item.color }]}>{item.title}</Text>
@@ -136,16 +141,15 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      {/* Skip button */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      
       {currentIndex < data.length - 1 && (
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipText}>Skip</Text>
+          <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip</Text>
         </TouchableOpacity>
       )}
 
-      {/* Main slides */}
       <FlatList
         ref={flatListRef}
         data={data}
@@ -163,8 +167,7 @@ export default function OnboardingScreen() {
         scrollEventThrottle={32}
       />
 
-      {/* Indicators and button */}
-      <View style={styles.bottomContainer}>
+      <View style={[styles.bottomContainer, { backgroundColor: colors.background }]}>
         <View style={styles.indicatorContainer}>
           {data.map((_, i) => {
             const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
@@ -175,7 +178,7 @@ export default function OnboardingScreen() {
             });
             const backgroundColor = scrollX.interpolate({
               inputRange,
-              outputRange: ['#D1D5DB', data[i].color, '#D1D5DB'],
+              outputRange: [colors.border || '#D1D5DB', data[i].color, colors.border || '#D1D5DB'],
               extrapolate: 'clamp',
             });
             return (
@@ -201,90 +204,90 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  skipButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-  },
-  skipText: {
-    color: '#9CA3AF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  slide: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-  },
-  illustrationContainer: {
-    marginBottom: 40,
-  },
-  circleBackground: {
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mainIcon: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 30,
-    elevation: 10,
-  },
-  floating: {
-    position: 'absolute',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  description: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  bottomContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  indicatorContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 30,
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
-  },
-  nextButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 30,
-  },
-  nextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    skipButton: {
+      position: 'absolute',
+      top: 50,
+      right: 20,
+      zIndex: 10,
+    },
+    skipText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    slide: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 30,
+    },
+    illustrationContainer: {
+      marginBottom: 40,
+    },
+    circleBackground: {
+      width: 280,
+      height: 280,
+      borderRadius: 140,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    mainIcon: {
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: colors.shadow || '#000',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.1,
+      shadowRadius: 30,
+      elevation: 10,
+    },
+    floating: {
+      position: 'absolute',
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    description: {
+      fontSize: 16,
+      color: colors.textSecondary || '#6B7280',
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    bottomContainer: {
+      paddingHorizontal: 20,
+      paddingBottom: 40,
+    },
+    indicatorContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginBottom: 30,
+    },
+    dot: {
+      height: 8,
+      borderRadius: 4,
+      marginHorizontal: 4,
+    },
+    nextButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 16,
+      borderRadius: 30,
+    },
+    nextButtonText: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginRight: 8,
+    },
+  });

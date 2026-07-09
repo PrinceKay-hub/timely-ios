@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
 import LoginScreen from './LoginScreen';
 import SignUpScreen from './SignupScreen';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface Props {
   route?: { params?: { from?: string } };
@@ -11,6 +12,11 @@ export default function AuthWrapper({ route }: Props) {
   const [isLogin, setIsLogin] = useState(true);
   const fadeAnim = useState(new Animated.Value(1))[0];
   const from = route?.params?.from;
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const toggleAuthMode = () => {
     Animated.timing(fadeAnim, {
@@ -40,9 +46,11 @@ export default function AuthWrapper({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+  });

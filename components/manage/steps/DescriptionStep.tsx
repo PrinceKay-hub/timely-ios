@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
+import { useTheme } from '@/providers/ThemeProvider';
 
-const PURPLE = '#8B5CF6';
 const MIN_CHARS = 50;
 const MAX_CHARS = 500;
 const MAX_RETRIES = 3;
 
 export const DescriptionStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const description = currentService?.description || '';
   const serviceName = currentService?.name || '';
   const category = currentService?.category || '';
@@ -47,12 +53,10 @@ export const DescriptionStep = () => {
       (d: any) => d['@type']?.includes('QuotaFailure')
     )?.violations?.[0]?.quotaId;
 
-    // Daily quota exhausted — retrying won't help, fail fast so fallback kicks in
     if (response.status === 429 && quotaId?.includes('PerDay')) {
       throw new Error('DAILY_QUOTA_EXCEEDED');
     }
 
-    // Transient overload or per-minute burst — worth retrying
     if ((response.status === 503 || response.status === 429) && attempt < MAX_RETRIES) {
       const delayMs = 1000 * Math.pow(2, attempt);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -118,23 +122,30 @@ export const DescriptionStep = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Ionicons name="document-text-outline" size={60} color={PURPLE} />
-      <Text style={styles.title}>Describe Your Business</Text>
-      <Text style={styles.subtitle}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      <Ionicons name="document-text-outline" size={60} color={colors.primary} />
+      <Text style={[styles.title, { color: colors.text }]}>Describe Your Business</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         Tell potential customers about your services and what makes you unique
       </Text>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card || colors.background }]}>
         <View style={styles.labelRow}>
-          <Text style={styles.label}>Business Description</Text>
-          <Text style={[styles.charCount, description.length >= MIN_CHARS && styles.charCountValid]}>
+          <Text style={[styles.label, { color: colors.text }]}>Business Description</Text>
+          <Text style={[
+            styles.charCount,
+            description.length >= MIN_CHARS ? styles.charCountValid : { color: colors.textSecondary }
+          ]}>
             {description.length}/{MAX_CHARS}
           </Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.suggestButton, isLoading && styles.suggestButtonDisabled]}
+          style={[
+            styles.suggestButton,
+            { backgroundColor: colors.primary },
+            isLoading && styles.suggestButtonDisabled
+          ]}
           onPress={handleSuggestDescription}
           disabled={isLoading}
         >
@@ -149,19 +160,26 @@ export const DescriptionStep = () => {
         </TouchableOpacity>
 
         <TextInput
-          style={styles.textArea}
+          style={[
+            styles.textArea,
+            {
+              borderColor: colors.border || '#ddd',
+              color: colors.text,
+              backgroundColor: colors.surface,
+            }
+          ]}
           value={description}
           onChangeText={(text) => updateServiceField('description', text)}
           placeholder="Welcome to our salon where we provide exceptional services..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.textSecondary || '#999'}
           multiline
           maxLength={MAX_CHARS}
           textAlignVertical="top"
         />
         {description.length < MIN_CHARS && (
-          <View style={styles.warning}>
-            <Ionicons name="information-circle-outline" size={20} color="orange" />
-            <Text style={styles.warningText}>
+          <View style={[styles.warning, { backgroundColor: colors.error + '1a' }]}>
+            <Ionicons name="information-circle-outline" size={20} color={colors.error} />
+            <Text style={[styles.warningText, { color: colors.error }]}>
               Minimum {MIN_CHARS} characters required ({MIN_CHARS - description.length} more)
             </Text>
           </View>
@@ -171,44 +189,43 @@ export const DescriptionStep = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  title: { fontSize: 28, fontWeight: 'bold', marginTop: 16, marginBottom: 8 },
-  subtitle: { color: 'gray', fontSize: 16, marginBottom: 24 },
-  card: { backgroundColor: 'white', borderRadius: 15, padding: 16 },
-  labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  label: { fontWeight: '600', fontSize: 14 },
-  charCount: { color: 'gray', fontSize: 12 },
-  charCountValid: { color: 'green' },
-  suggestButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: PURPLE,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-    gap: 6,
-  },
-  suggestButtonDisabled: { opacity: 0.6 },
-  suggestButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
-  textArea: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    minHeight: 120,
-  },
-  warning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#fff3e0',
-    borderRadius: 8,
-  },
-  warningText: { color: 'orange', fontSize: 12, marginLeft: 8, flex: 1 },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, paddingHorizontal: 20 },
+    title: { fontSize: 28, fontWeight: 'bold', marginTop: 16, marginBottom: 8 },
+    subtitle: { fontSize: 16, marginBottom: 24 },
+    card: { borderRadius: 15, padding: 16 },
+    labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    label: { fontWeight: '600', fontSize: 14 },
+    charCount: { fontSize: 12 },
+    charCountValid: { color: 'green' },
+    suggestButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 999,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      marginBottom: 12,
+      alignSelf: 'flex-start',
+      gap: 6,
+    },
+    suggestButtonDisabled: { opacity: 0.6 },
+    suggestButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
+    textArea: {
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 16,
+      minHeight: 120,
+    },
+    warning: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 8,
+    },
+    warningText: { fontSize: 12, marginLeft: 8, flex: 1 },
+  });

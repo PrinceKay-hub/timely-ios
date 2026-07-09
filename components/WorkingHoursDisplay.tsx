@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface WorkingHoursDisplayProps {
   service: {
@@ -15,6 +16,9 @@ interface WorkingHoursDisplayProps {
 }
 
 const WorkingHoursDisplay: React.FC<WorkingHoursDisplayProps> = ({ service }) => {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
   const days = service.workingDays || [];
   const hours = service.workingHours || { startHour: 9, startMinute: 0, endHour: 17, endMinute: 0 };
 
@@ -50,11 +54,11 @@ const WorkingHoursDisplay: React.FC<WorkingHoursDisplayProps> = ({ service }) =>
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.daysText}>{getDaysDisplay()}</Text>
-      <View style={styles.hoursRow}>
-        <Ionicons name="time-outline" size={16} color="gray" />
-        <Text style={styles.hoursText}>
+    <View style={createStyles(colors).container}>
+      <Text style={createStyles(colors).daysText}>{getDaysDisplay()}</Text>
+      <View style={createStyles(colors).hoursRow}>
+        <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+        <Text style={createStyles(colors).hoursText}>
           {formatTime(hours.startHour, hours.startMinute)} - {formatTime(hours.endHour, hours.endMinute)}
         </Text>
       </View>
@@ -62,11 +66,11 @@ const WorkingHoursDisplay: React.FC<WorkingHoursDisplayProps> = ({ service }) =>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
   container: { alignItems: 'flex-start' },
-  daysText: { fontSize: 14, fontWeight: '500', marginBottom: 4 },
+  daysText: { fontSize: 14, color: colors.text, fontWeight: '500', marginBottom: 4 },
   hoursRow: { flexDirection: 'row', alignItems: 'center' },
-  hoursText: { fontSize: 14, color: 'gray', marginLeft: 4 },
+  hoursText: { fontSize: 14, color: colors.textSecondary, marginLeft: 4 },
 });
 
 export default WorkingHoursDisplay;

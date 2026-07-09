@@ -14,8 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSearchStore } from '@/stores/searchStore';
 import { ResultCard } from '@/components/search/ResultCard';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const sortOptions = [
   'Recommended',
@@ -31,10 +30,29 @@ const filterOptions = [
   'Verified',
 ];
 
+// Safe wrapper component
+const SafeResultCard = ({ item, colors }: { item: any; colors: any }) => {
+  try {
+    return <ResultCard item={item} />;
+  } catch (error) {
+    console.error('Error rendering ResultCard for item:', item?.id, error);
+    return (
+      <View style={[styles.errorItem, { backgroundColor: colors.errorLight || '#ffeeee' }]}>
+        <Text style={{ color: colors.error || 'red' }}>Error rendering item</Text>
+      </View>
+    );
+  }
+};
+
 export default function CategoryResultsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ category: string;}>();
+  const params = useLocalSearchParams<{ category: string }>();
   const { results, isLoading, error, searchByCategoryAction } = useSearchStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Local state for sorting and filtering
   const [sortBy, setSortBy] = useState('Recommended');
@@ -42,18 +60,11 @@ export default function CategoryResultsScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
 
-  // Parse location
-
-
   useEffect(() => {
     if (params.category) {
-      searchByCategoryAction(
-        params.category,
-      );
+      searchByCategoryAction(params.category);
     }
   }, [params.category]);
-
-
 
   const calculateRecommendationScore = (item: any) => {
     const rating = item.rating || 0;
@@ -74,7 +85,6 @@ export default function CategoryResultsScreen() {
   const filteredResults = useMemo(() => {
     let filtered = [...results];
 
-    // Apply filter
     switch (selectedFilter) {
       case 'Highly Rated (4.5+)':
         filtered = filtered.filter(item => (item.rating || 0) >= 4.5);
@@ -94,7 +104,6 @@ export default function CategoryResultsScreen() {
         break;
     }
 
-    // Apply sort
     switch (sortBy) {
       case 'Highest Rated':
         filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
@@ -120,10 +129,13 @@ export default function CategoryResultsScreen() {
   const handleBack = () => router.back();
 
   const renderHeader = () => (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: colors.primary }]}>
       <View style={styles.headerTop}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={PURPLE} />
+        <TouchableOpacity
+          onPress={handleBack}
+          style={[styles.backButton, { backgroundColor: colors.background }]}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerQuery} numberOfLines={1}>
@@ -140,83 +152,96 @@ export default function CategoryResultsScreen() {
   );
 
   const renderSortFilterBar = () => (
-    <View style={styles.sortFilterBar}>
-      <TouchableOpacity style={styles.sortButton} onPress={() => setShowSortModal(true)}>
-        <Ionicons name="funnel-outline" size={20} color={PURPLE} />
-        <Text style={styles.sortButtonText}>{sortBy}</Text>
+    <View style={[styles.sortFilterBar, { backgroundColor: colors.card }]}>
+      <TouchableOpacity
+        style={[styles.sortButton, { backgroundColor: colors.surface }]}
+        onPress={() => setShowSortModal(true)}
+      >
+        <Ionicons name="funnel-outline" size={20} color={colors.primary} />
+        <Text style={[styles.sortButtonText, { color: colors.text }]}>{sortBy}</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.filterButton, showFilters && styles.filterButtonActive]}
+        style={[
+          styles.filterButton,
+          { backgroundColor: showFilters ? colors.primary : colors.surface },
+        ]}
         onPress={() => setShowFilters(!showFilters)}
       >
         <Ionicons
           name="options-outline"
           size={20}
-          color={showFilters ? 'white' : PURPLE}
+          color={showFilters ? '#fff' : colors.primary}
         />
       </TouchableOpacity>
     </View>
   );
 
   const renderFilterChips = () => (
-  <View style={styles.filterChipsContainer}>
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filterChipsContent}
-    >
-      {filterOptions.map((filter) => (
-        <TouchableOpacity
-          key={filter}
-          style={[
-            styles.filterChip,
-            selectedFilter === filter && styles.filterChipActive,
-          ]}
-          onPress={() => setSelectedFilter(filter)}
-        >
-          <Text
+    <View style={[styles.filterChipsContainer, { backgroundColor: colors.card }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterChipsContent}
+      >
+        {filterOptions.map((filter) => (
+          <TouchableOpacity
+            key={filter}
             style={[
-              styles.filterChipText,
-              selectedFilter === filter && styles.filterChipTextActive,
+              styles.filterChip,
+              {
+                backgroundColor: selectedFilter === filter ? colors.primary : colors.surface,
+                borderColor: selectedFilter === filter ? colors.primary : colors.border || '#eee',
+              },
             ]}
+            onPress={() => setSelectedFilter(filter)}
           >
-            {filter}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  </View>
-);
+            <Text
+              style={[
+                styles.filterChipText,
+                {
+                  color: selectedFilter === filter ? '#fff' : colors.textSecondary || '#333',
+                },
+              ]}
+            >
+              {filter}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="search-outline" size={60} color="#ccc" />
-      <Text style={styles.emptyTitle}>No results found</Text>
-      <Text style={styles.emptySubtitle}>Try a different search or location</Text>
+      <Ionicons name="search-outline" size={60} color={colors.textSecondary || '#ccc'} />
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>No results found</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary || 'gray' }]}>
+        Try a different search or location
+      </Text>
     </View>
   );
 
   if (isLoading && results.length === 0) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={PURPLE} />
+      <View style={[styles.centered, { backgroundColor: colors.surface }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={{ color: 'red', marginBottom: 10 }}>{error}</Text>
+      <View style={[styles.centered, { backgroundColor: colors.surface }]}>
+        <Text style={{ color: colors.error || 'red', marginBottom: 10 }}>{error}</Text>
         <TouchableOpacity onPress={() => searchByCategoryAction(params.category)}>
-          <Text style={{ color: PURPLE }}>Retry</Text>
+          <Text style={{ color: colors.primary }}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {renderHeader()}
       {renderSortFilterBar()}
       {showFilters && renderFilterChips()}
@@ -224,17 +249,21 @@ export default function CategoryResultsScreen() {
       <FlatList
         data={filteredResults}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ResultCard item={item} />}
+        renderItem={({ item }) => <SafeResultCard item={item} colors={colors} />}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmpty()}
       />
 
       {/* Sort Modal */}
       <Modal visible={showSortModal} transparent animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowSortModal(false)}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Sort By</Text>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSortModal(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.modalHandle, { backgroundColor: colors.textSecondary || '#ccc' }]} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Sort By</Text>
             {sortOptions.map((option) => (
               <TouchableOpacity
                 key={option}
@@ -247,9 +276,17 @@ export default function CategoryResultsScreen() {
                 <Ionicons
                   name={sortBy === option ? 'radio-button-on' : 'radio-button-off'}
                   size={20}
-                  color={sortBy === option ? PURPLE : '#999'}
+                  color={sortBy === option ? colors.primary : colors.textSecondary || '#999'}
                 />
-                <Text style={[styles.sortOptionText, sortBy === option && styles.sortOptionTextActive]}>
+                <Text
+                  style={[
+                    styles.sortOptionText,
+                    {
+                      color: sortBy === option ? colors.primary : colors.textSecondary || '#333',
+                      fontWeight: sortBy === option ? 'bold' : 'normal',
+                    },
+                  ]}
+                >
                   {option}
                 </Text>
               </TouchableOpacity>
@@ -261,117 +298,106 @@ export default function CategoryResultsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: {
-    backgroundColor: PURPLE,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-    marginRight: 16,
-  },
-  headerText: { flex: 1 },
-  headerQuery: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  headerLocation: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 2 },
-  resultCount: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-  },
-  resultCountText: { color: 'white', fontWeight: '600' },
-  sortFilterBar: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-  },
-  sortButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    paddingVertical: 12,
-    marginRight: 12,
-  },
-  sortButtonText: { fontWeight: '600', marginLeft: 8, color: '#333' },
-  filterButton: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    padding: 12,
-  },
-  filterButtonActive: {
-    backgroundColor: PURPLE,
-  },
-  filterChipsContainer: {
-  height: 56,                // Fixed height for the row
-  backgroundColor: 'white',
-  justifyContent: 'center',  // Center the chips vertically
-},
-filterChipsContent: {
-  paddingHorizontal: 20,
-  paddingVertical: 8,
-},
-filterChip: {
-  paddingHorizontal: 16,
-  paddingVertical: 8,
-  backgroundColor: '#f5f5f5',
-  borderRadius: 20,
-  borderWidth: 1,
-  borderColor: '#eee',
-  marginRight: 8,            // Horizontal spacing between chips
-},
-  filterChipActive: {
-    backgroundColor: PURPLE,
-    borderColor: PURPLE,
-  },
-  filterChipText: { fontWeight: '600', color: '#333' },
-  filterChipTextActive: { color: 'white' },
-  listContent: { padding: 20 },
-  emptyContainer: { alignItems: 'center', padding: 40 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', marginTop: 16 },
-  emptySubtitle: { color: 'gray', fontSize: 14, marginTop: 8, textAlign: 'center' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 20,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#ccc',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  sortOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  sortOptionText: { fontSize: 16, marginLeft: 12, color: '#333' },
-  sortOptionTextActive: { fontWeight: 'bold', color: PURPLE },
-});
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    header: {
+      paddingTop: 50,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
+    },
+    headerTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    backButton: {
+      borderRadius: 20,
+      padding: 8,
+      marginRight: 16,
+    },
+    headerText: { flex: 1 },
+    headerQuery: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+    headerLocation: { color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 2 },
+    resultCount: {
+      alignSelf: 'flex-start',
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+    },
+    resultCountText: { color: 'white', fontWeight: '600' },
+    sortFilterBar: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    sortButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      paddingVertical: 12,
+      marginRight: 12,
+    },
+    sortButtonText: { fontWeight: '600', marginLeft: 8 },
+    filterButton: {
+      borderRadius: 10,
+      padding: 12,
+    },
+    filterChipsContainer: {
+      height: 56,
+      justifyContent: 'center',
+    },
+    filterChipsContent: {
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+    },
+    filterChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      marginRight: 8,
+    },
+    filterChipText: { fontWeight: '600' },
+    listContent: { padding: 20 },
+    emptyContainer: { alignItems: 'center', padding: 40 },
+    emptyTitle: { fontSize: 20, fontWeight: 'bold', marginTop: 16 },
+    emptySubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
+      padding: 20,
+    },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      alignSelf: 'center',
+      marginBottom: 20,
+    },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
+    sortOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    sortOptionText: { fontSize: 16, marginLeft: 12 },
+    errorItem: {
+      padding: 16,
+      marginVertical: 8,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+  });

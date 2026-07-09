@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { ServiceRegistrationForm } from '@/components/manage/ServiceRegistrationForm';
 import { ServiceOverviewCard } from '@/components/manage/ServiceOverviewCard';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface MenuItemConfig {
   icon: string;
@@ -24,9 +23,13 @@ interface MenuItemConfig {
   trailing?: React.ReactNode;
 }
 
-
-// ─── Menu section ─────────────────────────────────────────────────────────────
-const MenuSection: React.FC<{ title: string; items: MenuItemConfig[] }> = ({ title, items }) => (
+// ─── Menu section (themed via props) ──────────────────────────────────────
+const MenuSection: React.FC<{
+  title: string;
+  items: MenuItemConfig[];
+  styles: any;
+  colors: any;
+}> = ({ title, items, styles, colors }) => (
   <View style={styles.menuSection}>
     <Text style={styles.menuSectionTitle}>{title}</Text>
     {items.map((item, index) => (
@@ -39,14 +42,10 @@ const MenuSection: React.FC<{ title: string; items: MenuItemConfig[] }> = ({ tit
         onPress={item.onPress}
         activeOpacity={0.7}
       >
-        {/* Icon box */}
-        <View style={styles.menuIconBox}>
+        <View style={[styles.menuIconBox, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
           <Text style={styles.menuIconText}>{item.icon}</Text>
         </View>
-
         <Text style={styles.menuItemTitle}>{item.title}</Text>
-
-        {/* Trailing: custom widget or default chevron */}
         {item.trailing ?? (
           <Text style={styles.menuChevron}>›</Text>
         )}
@@ -59,6 +58,12 @@ export default function ServiceRegistrationScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { user } = useAuthStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
+  // Create dynamic styles based on the theme
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const {
     existingService,
     isLoading,
@@ -85,7 +90,6 @@ export default function ServiceRegistrationScreen() {
       clearError();
     }
   }, [error]);
-
 
   const handleBack = () => {
     if (step > 0) {
@@ -127,7 +131,7 @@ export default function ServiceRegistrationScreen() {
       case 6:
         return currentService.services.length > 0;
       case 7:
-        return (currentService.images?.length || 0) >= 1; // at least one image
+        return (currentService.images?.length || 0) >= 1;
       default:
         return true;
     }
@@ -137,49 +141,53 @@ export default function ServiceRegistrationScreen() {
     if (step < 7) {
       setStep(step + 1);
     } else {
-      // Submit
       await saveService(effectiveUserId!, currentService?.images || []);
-      // After success, the store will set step back to 0 and reload service
     }
   };
 
-  if (isLoading ) {
+  if (isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={PURPLE} />
+      <View style={[styles.center, { backgroundColor: colors.surface }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
-  // ── Menu definitions (unchanged) ────────────────────────────────────────────
-    const accountItems = [
-      {
-        icon: '📷',
-        title: 'Portfolio',
-        onPress: () => {
-          router.push({
-                  pathname: '/portfolio/portfolioscreen',
-                  params: {
-                    id: existingService?.id, serviceName: existingService?.name
-                  },
-                })
-          //navigation.navigate('portfolio/portfolioscreen', { id: currentService?.id, serviceName: currentService?.name  });
-        },
+  // ── Menu definitions ──────────────────────────────────────────────────────
+  const accountItems = [
+    {
+      icon: '📷',
+      title: 'Portfolio',
+      onPress: () => {
+        router.push({
+          pathname: '/portfolio/portfolioscreen',
+          params: {
+            id: existingService?.id,
+            serviceName: existingService?.name,
+          },
+        });
       },
-    ];
+    },
+  ];
 
   // Form mode (step > 0)
   if (step > 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.surface }]}>
         {/* Progress header */}
-        <View style={styles.progressHeader}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={PURPLE} />
+        <View style={[styles.progressHeader, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={[styles.backButton, { backgroundColor: colors.background }]}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.stepText}>Step {step} of 7</Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={PURPLE} />
+          <TouchableOpacity
+            onPress={handleClose}
+            style={[styles.closeButton, { backgroundColor: colors.background }]}
+          >
+            <Ionicons name="close" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
         <View style={styles.progressBar}>
@@ -191,14 +199,14 @@ export default function ServiceRegistrationScreen() {
         </ScrollView>
 
         {/* Bottom Button */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border || '#eee' }]}>
           <TouchableOpacity
-            style={[styles.nextButton, !canProceed() && styles.disabledButton]}
+            style={[styles.nextButton, !canProceed() && styles.disabledButton, { backgroundColor: colors.primary }]}
             onPress={handleNext}
             disabled={!canProceed() || isLoading}
           >
             <Text style={styles.nextButtonText}>
-                {step === 7 ? 'Submit' : 'Continue'}
+              {step === 7 ? 'Submit' : 'Continue'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -209,21 +217,27 @@ export default function ServiceRegistrationScreen() {
   // No service: empty state
   if (!existingService) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={PURPLE} />
+      <View style={[styles.container, { backgroundColor: colors.surface }]}>
+        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity
+            onPress={handleClose}
+            style={[styles.backButton, { backgroundColor: colors.background }]}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Manage Service</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.emptyContainer}>
-          <Ionicons name="business-outline" size={80} color={PURPLE} />
-          <Text style={styles.emptyTitle}>No Service Yet</Text>
-          <Text style={styles.emptySubtitle}>
+          <Ionicons name="business-outline" size={80} color={colors.primary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No Service Yet</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
             You haven't registered any service. Add one now to start receiving bookings.
           </Text>
-          <TouchableOpacity style={styles.addButton} onPress={() => setStep(1)}>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: colors.primary }]}
+            onPress={() => setStep(1)}
+          >
             <Text style={styles.addButtonText}>Add Service</Text>
           </TouchableOpacity>
         </View>
@@ -233,165 +247,160 @@ export default function ServiceRegistrationScreen() {
 
   // Existing service overview
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={PURPLE} />
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={[styles.backButton, { backgroundColor: colors.background }]}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Service</Text>
         <View style={{ width: 40 }} />
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <ServiceOverviewCard service={existingService} />
-        {/* Menu sections */}
-                <View style={styles.menuWrap}>
-                  <MenuSection title="Extra options" items={accountItems} />
-                  <View style={styles.sectionGap} />
-                </View>
+        <View style={styles.menuWrap}>
+          <MenuSection title="Extra options" items={accountItems} styles={styles} colors={colors} />
+          <View style={styles.sectionGap} />
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: {
-    backgroundColor: PURPLE,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-  },
-  closeButton: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 8,
-  },
-  headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  progressHeader: {
-    backgroundColor: PURPLE,
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  stepText: { color: 'white', fontSize: 14, fontWeight: '600' },
-  progressBar: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    width: '100%',
-  },
-  progressFill: {
-    height: 4,
-    backgroundColor: 'white',
-  },
-  formContent: {
-    paddingBottom: 20,
-    flexGrow: 1,
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: 'white',
-  },
-  nextButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 30,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  content: { padding: 20 },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 8 },
-  emptySubtitle: { color: 'gray', fontSize: 14, textAlign: 'center', marginBottom: 30 },
-  addButton: {
-    backgroundColor: PURPLE,
-    borderRadius: 30,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-  },
-  addButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+// ─── Style factory ──────────────────────────────────────────────────────────
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1 },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    header: {
+      paddingTop: 50,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    backButton: {
+      borderRadius: 20,
+      padding: 8,
+    },
+    closeButton: {
+      borderRadius: 20,
+      padding: 8,
+    },
+    headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+    progressHeader: {
+      paddingTop: 50,
+      paddingHorizontal: 20,
+      paddingBottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    stepText: { color: 'white', fontSize: 14, fontWeight: '600' },
+    progressBar: {
+      height: 4,
+      backgroundColor: 'rgba(255,255,255,0.3)',
+      width: '100%',
+    },
+    progressFill: {
+      height: 4,
+      backgroundColor: 'white',
+    },
+    formContent: {
+      paddingBottom: 20,
+      flexGrow: 1,
+    },
+    footer: {
+      padding: 20,
+      borderTopWidth: 1,
+    },
+    nextButton: {
+      borderRadius: 30,
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+    disabledButton: {
+      opacity: 0.5,
+    },
+    nextButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    content: { padding: 20 },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 40,
+    },
+    emptyTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 8 },
+    emptySubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 30 },
+    addButton: {
+      borderRadius: 30,
+      paddingVertical: 16,
+      paddingHorizontal: 40,
+    },
+    addButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 
-  // ── Menu wrap ──
-  menuWrap: {
-    marginTop: 24,
-  },
-  sectionGap: {
-    height: 16,
-  },
+    // ── Menu wrap ──
+    menuWrap: {
+      marginTop: 24,
+    },
+    sectionGap: {
+      height: 16,
+    },
 
-  // ── Menu section ──
-  menuSection: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    overflow: 'hidden',
-  },
-  menuSectionTitle: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 6,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9ca3af',
-    letterSpacing: 0.3,
-  },
+    // ── Menu section ──
+    menuSection: {
+      backgroundColor: colors.card || colors.background,
+      borderRadius: 15,
+      overflow: 'hidden',
+    },
+    menuSectionTitle: {
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 6,
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textSecondary || '#9ca3af',
+      letterSpacing: 0.3,
+    },
 
-  // ── Menu item ──
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  menuItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.07)',
-  },
-  menuIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#f3f0ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  menuIconText: {
-    fontSize: 18,
-  },
-  menuItemTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#111827',
-  },
-  menuChevron: {
-    fontSize: 22,
-    color: '#9ca3af',
-    lineHeight: 24,
-  },
-});
+    // ── Menu item ──
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    menuItemBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border || 'rgba(0,0,0,0.07)',
+    },
+    menuIconBox: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 14,
+    },
+    menuIconText: {
+      fontSize: 18,
+    },
+    menuItemTitle: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '500',
+      color: colors.text,
+    },
+    menuChevron: {
+      fontSize: 22,
+      color: colors.textSecondary || '#9ca3af',
+      lineHeight: 24,
+    },
+  });

@@ -6,7 +6,7 @@ const colors = {
   // Primary purple from Flutter
   primary: '#8B5CF6',
   primaryLight: '#A78BFA',
-  primaryDark: '#7C3AED',
+  primaryDark: '#8B5CF6',
   
   // Secondary teal
   secondary: '#06B6D4',
@@ -209,6 +209,7 @@ export const lightTheme = {
     borderLight: colors.gray100,
     borderDark: colors.gray300,
     
+    
     // Status bar
     statusBar: 'dark-content',
     
@@ -239,8 +240,8 @@ export const lightTheme = {
 export const darkTheme = {
   dark: true,
   colors: {
-    primary: colors.primaryLight,
-    primaryLight: colors.primary,
+    primary: colors.primary,
+    primaryLight: colors.primaryLight,
     primaryDark: colors.primaryDark,
     secondary: colors.secondaryLight,
     secondaryLight: colors.secondary,
@@ -257,7 +258,7 @@ export const darkTheme = {
     // Backgrounds
     background: colors.gray900,
     surface: colors.gray800,
-    card: colors.gray800,
+    card: colors.gray900,
     
     // Text
     text: colors.gray100,
