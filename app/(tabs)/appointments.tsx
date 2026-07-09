@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,9 +23,9 @@ import { ReviewDialog } from '@/components/appointments/ReviewDialog';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { BookingEntity } from '@/types/booking';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const { width } = Dimensions.get('window');
-const PURPLE = '#8B5CF6';
 
 // Helper functions moved to the top
 const getEmptyIcon = (status: string) => {
@@ -75,10 +75,13 @@ const BookingList: React.FC<BookingListProps> = ({
   onWriteReview,
   onBookAgain,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+
   if (bookings.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name={getEmptyIcon(status)} size={48} color="gray" />
+        <Ionicons name={getEmptyIcon(status)} size={48} color={theme.colors.textSecondary} />
         <Text style={styles.emptyText}>{getEmptyMessage(status)}</Text>
       </View>
     );
@@ -109,6 +112,8 @@ const BookingList: React.FC<BookingListProps> = ({
 };
 
 export default function AppointmentsScreen() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const router = useRouter();
   const { user } = useAuthStore();
   const {
@@ -271,7 +276,7 @@ export default function AppointmentsScreen() {
   if (isLoading && userBookings.length === 0) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={PURPLE} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -297,11 +302,11 @@ export default function AppointmentsScreen() {
         renderTabBar={(props) => (
           <TabBar
             {...props}
-            indicatorStyle={{ backgroundColor: PURPLE }}
+            indicatorStyle={{ backgroundColor: theme.colors.primary }}
             style={styles.tabBar}
             labelStyle={styles.tabLabel}
-            activeColor={PURPLE}
-            inactiveColor="gray"
+            activeColor={theme.colors.primary}
+            inactiveColor={theme.colors.textSecondary}
           />
         )}
       />
@@ -367,63 +372,64 @@ export default function AppointmentsScreen() {
       {/* Directions Loading Overlay */}
       {isDirectionsLoading && (
         <View style={styles.overlay}>
-          <ActivityIndicator size="large" color="white" />
+          <ActivityIndicator size="large" color={theme.colors.white} />
         </View>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: {
-    backgroundColor: PURPLE,
-    paddingTop: 50,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  headerTitle: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  tabBar: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 15,
-    elevation: 2,
-  },
-  tabLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  listContainer: {
-    padding: 20,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    color: 'gray',
-    fontSize: 16,
-    marginTop: 12,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.surface },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    header: {
+      backgroundColor: theme.colors.primary,
+      paddingTop: 50,
+      paddingBottom: 30,
+      paddingHorizontal: 20,
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
+    },
+    headerTitle: {
+      color: theme.colors.white,
+      fontSize: 24,
+      fontWeight: 'bold',
+      marginBottom: 20,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+    },
+    tabBar: {
+      backgroundColor: theme.colors.card,
+      marginHorizontal: 20,
+      marginTop: 20,
+      borderRadius: 15,
+      elevation: 2,
+    },
+    tabLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    listContainer: {
+      padding: 20,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 40,
+    },
+    emptyText: {
+      color: theme.colors.textSecondary,
+      fontSize: 16,
+      marginTop: 12,
+    },
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  });

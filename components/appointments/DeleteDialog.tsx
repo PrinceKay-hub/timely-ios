@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface DeleteDialogProps {
   visible: boolean;
@@ -8,6 +9,8 @@ interface DeleteDialogProps {
 }
 
 export const DeleteDialog: React.FC<DeleteDialogProps> = ({ visible, onDelete, onClose }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -28,26 +31,27 @@ export const DeleteDialog: React.FC<DeleteDialogProps> = ({ visible, onDelete, o
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  dialog: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  message: { color: 'gray', marginBottom: 24 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
-  cancelBtn: { padding: 12, marginRight: 8 },
-  cancelText: { color: 'gray', fontWeight: '600' },
-  deleteBtn: { backgroundColor: 'red', padding: 12, borderRadius: 8 },
-  deleteText: { color: 'white', fontWeight: 'bold' },
-});
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    dialog: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
+      padding: 24,
+      width: '100%',
+      maxWidth: 400,
+    },
+    title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: theme.colors.text },
+    message: { color: theme.colors.textSecondary, marginBottom: 24 },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end' },
+    cancelBtn: { padding: 12, marginRight: 8 },
+    cancelText: { color: theme.colors.textSecondary, fontWeight: '600' },
+    deleteBtn: { backgroundColor: theme.colors.error, padding: 12, borderRadius: 8 },
+    deleteText: { color: theme.colors.white, fontWeight: 'bold' },
+  });

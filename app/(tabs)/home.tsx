@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -17,6 +17,7 @@ import messaging from '@react-native-firebase/messaging';
 import { useHomeStore } from '@/stores/home';
 import { useServiceDataStore } from '@/stores/serviceData';
 import { useConnectivityStore, initConnectivityListener } from '@/stores/connectivityStore';
+import { useTheme } from '@/providers/ThemeProvider';
 
 // Widgets
 import { ModernAppBar } from '../../components/mordenappbar';
@@ -28,6 +29,9 @@ import { RecommendedSection } from '../../components/recommendedsection';
 import { Snackbar } from '../../components/Snackbar';
 
 export default function Home() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+
   // Stores
   const { user, profile } = useAuthStore();
   const { loadCategories, updateLocation } = useHomeStore();
@@ -120,7 +124,7 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle={theme.colors.statusBar} />
       {/* App bar is outside the scroll view */}
       <ModernAppBar user={userInfo} />
       
@@ -134,8 +138,8 @@ export default function Home() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#8B5CF6']}
-            tintColor="#8B5CF6"
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
@@ -157,19 +161,20 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 32,
-  },
-  body: {
-    flex: 1,
-  },
-});
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: theme.colors.gray100,
+    },
+    scroll: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: 32,
+    },
+    body: {
+      flex: 1,
+    },
+  });

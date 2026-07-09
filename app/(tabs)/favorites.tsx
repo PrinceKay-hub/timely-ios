@@ -1,6 +1,4 @@
-
-
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import {
   View,
@@ -15,23 +13,15 @@ import {
   StatusBar,
 } from 'react-native';
 import { useFavoriteStore } from '@/stores/favorite';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const PURPLE    = '#8B5CF6';
-const PURPLE_BG = '#F5F0FF';
-const GREEN     = '#10B981';
-const BG        = '#FAFAFA';
-const CARD_BG   = '#FFFFFF';
-const TEXT_1    = '#18181B';
-const TEXT_2    = '#71717A';
-const TEXT_3    = '#A1A1AA';
-const AMBER     = '#F59E0B';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const STATUS_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 44;
 
 // ─── ServiceImage ─────────────────────────────────────────────────────────────
 const ServiceImage: React.FC<{ uri: string; style: any }> = ({ uri, style }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError]   = useState(false);
   const shimmerAnim         = useRef(new Animated.Value(0)).current;
@@ -52,7 +42,7 @@ const ServiceImage: React.FC<{ uri: string; style: any }> = ({ uri, style }) => 
   const shimmerOpacity = shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.9] });
 
   return (
-    <View style={[style, { overflow: 'hidden', backgroundColor: '#F4F4F5' }]}>
+    <View style={[style, { overflow: 'hidden', backgroundColor: theme.colors.gray100 }]}>
       {!error && uri ? (
         <Image
           source={{ uri }}
@@ -81,25 +71,35 @@ const ServiceImage: React.FC<{ uri: string; style: any }> = ({ uri, style }) => 
 };
 
 // ─── ServiceChip ──────────────────────────────────────────────────────────────
-const ServiceChip: React.FC<{ name: string }> = ({ name }) => (
-  <View style={styles.chip}>
-    <Text style={styles.chipText}>{name}</Text>
-  </View>
-);
+const ServiceChip: React.FC<{ name: string }> = ({ name }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+  return (
+    <View style={styles.chip}>
+      <Text style={styles.chipText}>{name}</Text>
+    </View>
+  );
+};
 
 // ─── RatingBadge — compact pill ───────────────────────────────────────────────
-const RatingBadge: React.FC<{ rating: number; reviews?: number }> = ({ rating, reviews }) => (
-  <View style={styles.ratingPill}>
-    <Text style={styles.ratingStar}>★</Text>
-    <Text style={styles.ratingVal}>{rating.toFixed(1)}</Text>
-    {reviews !== undefined && (
-      <Text style={styles.ratingReviews}> · {reviews}</Text>
-    )}
-  </View>
-);
+const RatingBadge: React.FC<{ rating: number; reviews?: number }> = ({ rating, reviews }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+  return (
+    <View style={styles.ratingPill}>
+      <Text style={styles.ratingStar}>★</Text>
+      <Text style={styles.ratingVal}>{rating.toFixed(1)}</Text>
+      {reviews !== undefined && (
+        <Text style={styles.ratingReviews}> · {reviews}</Text>
+      )}
+    </View>
+  );
+};
 
 // ─── FavoriteCard — the main service card ─────────────────────────────────────
 const FavoriteCard: React.FC<{ item: Record<string, any>; index: number }> = ({ item, index }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const router    = useRouter();
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(16)).current;
@@ -217,6 +217,8 @@ const FavoriteCard: React.FC<{ item: Record<string, any>; index: number }> = ({ 
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 const EmptyState: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -242,43 +244,53 @@ const EmptyState: React.FC = () => {
 };
 
 // ─── Header Component ─────────────────────────────────────────────────────────
-const ListHeader: React.FC<{ count: number }> = ({ count }) => (
-  <View style={styles.listHeader}>
-    <View>
-      <Text style={styles.headerTitle}>Favorites</Text>
+const ListHeader: React.FC<{ count: number }> = ({ count }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+  return (
+    <View style={styles.listHeader}>
+      <View>
+        <Text style={styles.headerTitle}>Favorites</Text>
+        {count > 0 && (
+          <Text style={styles.headerSubtitle}>
+            {count} saved service{count !== 1 ? 's' : ''}
+          </Text>
+        )}
+      </View>
       {count > 0 && (
-        <Text style={styles.headerSubtitle}>
-          {count} saved service{count !== 1 ? 's' : ''}
-        </Text>
+        <View style={styles.headerCountBadge}>
+          <Text style={styles.headerCountText}>{count}</Text>
+        </View>
       )}
     </View>
-    {count > 0 && (
-      <View style={styles.headerCountBadge}>
-        <Text style={styles.headerCountText}>{count}</Text>
-      </View>
-    )}
-  </View>
-);
+  );
+};
 
 // ─── Loading State ────────────────────────────────────────────────────────────
-const LoadingState: React.FC = () => (
-  <View style={styles.loadingWrap}>
-    {/* Skeleton cards */}
-    {[1, 2, 3].map((i) => (
-      <View key={i} style={styles.skeletonCard}>
-        <View style={styles.skeletonImage} />
-        <View style={styles.skeletonBody}>
-          <View style={[styles.skeletonLine, { width: '70%' }]} />
-          <View style={[styles.skeletonLine, { width: '45%', marginTop: 8 }]} />
-          <View style={[styles.skeletonLine, { width: '55%', marginTop: 8 }]} />
+const LoadingState: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
+  return (
+    <View style={styles.loadingWrap}>
+      {/* Skeleton cards */}
+      {[1, 2, 3].map((i) => (
+        <View key={i} style={styles.skeletonCard}>
+          <View style={styles.skeletonImage} />
+          <View style={styles.skeletonBody}>
+            <View style={[styles.skeletonLine, { width: '70%' }]} />
+            <View style={[styles.skeletonLine, { width: '45%', marginTop: 8 }]} />
+            <View style={[styles.skeletonLine, { width: '55%', marginTop: 8 }]} />
+          </View>
         </View>
-      </View>
-    ))}
-  </View>
-);
+      ))}
+    </View>
+  );
+};
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function Favorite() {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const { favoriteItems, isLoading, loadFavoriteItems } = useFavoriteStore();
 
   useEffect(() => {
@@ -292,7 +304,7 @@ export default function Favorite() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={BG} />
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background} />
 
       {isLoading ? (
         <>
@@ -318,247 +330,248 @@ export default function Favorite() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: BG,
-    paddingTop: STATUS_H,
-  },
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingTop: STATUS_H,
+    },
 
-  // ── List ──
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
+    // ── List ──
+    listContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 40,
+    },
 
-  // ── Header ──
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingTop: 24,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: TEXT_1,
-    letterSpacing: -0.8,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: TEXT_2,
-    marginTop: 2,
-  },
-  headerCountBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: PURPLE_BG,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  headerCountText: {
-    color: PURPLE,
-    fontWeight: '800',
-    fontSize: 15,
-  },
+    // ── Header ──
+    listHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      paddingTop: 24,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
+    },
+    headerTitle: {
+      fontSize: 32,
+      fontWeight: '800',
+      color: theme.colors.text,
+      letterSpacing: -0.8,
+    },
+    headerSubtitle: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    headerCountBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: `${theme.colors.primary}1A`,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4,
+    },
+    headerCountText: {
+      color: theme.colors.primary,
+      fontWeight: '800',
+      fontSize: 15,
+    },
 
-  // ── Card ──
-  cardWrap: {
-    marginBottom: 18,
-    borderRadius: 20,
-    backgroundColor: CARD_BG,
-    // Layered shadow for depth
-    shadowColor: '#09090B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  imageWrap: {
-    position: 'relative',
-  },
-  cardImage: {
-    height: 200,
-    width: '100%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
+    // ── Card ──
+    cardWrap: {
+      marginBottom: 18,
+      borderRadius: 20,
+      backgroundColor: theme.colors.card,
+      // Layered shadow for depth
+      shadowColor: theme.colors.black,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.07,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    imageWrap: {
+      position: 'relative',
+    },
+    cardImage: {
+      height: 200,
+      width: '100%',
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+    },
 
-  // Overlays on image
-  verifiedOverlay: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: `${GREEN}E6`,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  verifiedOverlayText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  ratingOverlay: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-  },
-  ratingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    gap: 3,
-  },
-  ratingStar: {
-    color: AMBER,
-    fontSize: 13,
-  },
-  ratingVal: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  ratingReviews: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-  },
+    // Overlays on image
+    verifiedOverlay: {
+      position: 'absolute',
+      top: 12,
+      left: 12,
+      backgroundColor: `${theme.colors.success}E6`,
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    verifiedOverlayText: {
+      color: theme.colors.white,
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    ratingOverlay: {
+      position: 'absolute',
+      bottom: 12,
+      right: 12,
+    },
+    ratingPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      gap: 3,
+    },
+    ratingStar: {
+      color: theme.colors.warning,
+      fontSize: 13,
+    },
+    ratingVal: {
+      color: theme.colors.white,
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    ratingReviews: {
+      color: 'rgba(255,255,255,0.7)',
+      fontSize: 12,
+    },
 
-  // Card body
-  cardBody: {
-    padding: 16,
-    gap: 6,
-  },
-  cardName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: TEXT_1,
-    letterSpacing: -0.3,
-  },
+    // Card body
+    cardBody: {
+      padding: 16,
+      gap: 6,
+    },
+    cardName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: -0.3,
+    },
 
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationPin: { fontSize: 12 },
-  locationText: {
-    color: TEXT_2,
-    fontSize: 13,
-    flex: 1,
-  },
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    locationPin: { fontSize: 12 },
+    locationText: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      flex: 1,
+    },
 
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-  },
-  chip: {
-    backgroundColor: PURPLE_BG,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  chipText: {
-    color: PURPLE,
-    fontSize: 11,
-    fontWeight: '600',
-  },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 4,
+    },
+    chip: {
+      backgroundColor: `${theme.colors.primary}1A`,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    chipText: {
+      color: theme.colors.primary,
+      fontSize: 11,
+      fontWeight: '600',
+    },
 
-  cardFooter: {
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F4F4F5',
-    alignItems: 'flex-end',
-  },
-  bookCta: {
-    color: PURPLE,
-    fontWeight: '700',
-    fontSize: 14,
-    letterSpacing: 0.1,
-  },
+    cardFooter: {
+      marginTop: 8,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.borderLight,
+      alignItems: 'flex-end',
+    },
+    bookCta: {
+      color: theme.colors.primary,
+      fontWeight: '700',
+      fontSize: 14,
+      letterSpacing: 0.1,
+    },
 
-  // ── Image ──
-  shimmerLayer: {
-    backgroundColor: '#E4E4E7',
-  },
-  imageFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F4F4F5',
-  },
-  imageFallbackIcon: { fontSize: 32 },
+    // ── Image ──
+    shimmerLayer: {
+      backgroundColor: theme.colors.gray200,
+    },
+    imageFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.gray100,
+    },
+    imageFallbackIcon: { fontSize: 32 },
 
-  // ── Skeleton loading ──
-  loadingWrap: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    gap: 18,
-  },
-  skeletonCard: {
-    backgroundColor: CARD_BG,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#09090B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  skeletonImage: {
-    height: 200,
-    backgroundColor: '#E4E4E7',
-  },
-  skeletonBody: {
-    padding: 16,
-  },
-  skeletonLine: {
-    height: 14,
-    backgroundColor: '#F4F4F5',
-    borderRadius: 7,
-  },
+    // ── Skeleton loading ──
+    loadingWrap: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      gap: 18,
+    },
+    skeletonCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
+      overflow: 'hidden',
+      shadowColor: theme.colors.black,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    skeletonImage: {
+      height: 200,
+      backgroundColor: theme.colors.gray200,
+    },
+    skeletonBody: {
+      padding: 16,
+    },
+    skeletonLine: {
+      height: 14,
+      backgroundColor: theme.colors.gray100,
+      borderRadius: 7,
+    },
 
-  // ── Empty state ──
-  emptyWrap: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 32,
-  },
-  emptyIconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: PURPLE_BG,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyIcon: {
-    fontSize: 42,
-    color: PURPLE,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: TEXT_1,
-    letterSpacing: -0.5,
-    marginBottom: 10,
-  },
-  emptySubtitle: {
-    fontSize: 15,
-    color: TEXT_2,
-    textAlign: 'center',
-    lineHeight: 23,
-  },
-});
+    // ── Empty state ──
+    emptyWrap: {
+      alignItems: 'center',
+      paddingTop: 60,
+      paddingHorizontal: 32,
+    },
+    emptyIconWrap: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      backgroundColor: `${theme.colors.primary}1A`,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+    },
+    emptyIcon: {
+      fontSize: 42,
+      color: theme.colors.primary,
+    },
+    emptyTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: theme.colors.text,
+      letterSpacing: -0.5,
+      marginBottom: 10,
+    },
+    emptySubtitle: {
+      fontSize: 15,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 23,
+    },
+  });

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import { useTheme } from '@/providers/ThemeProvider';
 
 const clientReasons = [
   'Schedule conflict',
@@ -32,6 +33,8 @@ export const CancelDialog: React.FC<CancelDialogProps> = ({
   onCancel,
   onClose,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const reasons = userId === booking.providerId ? providerReasons : clientReasons;
 
@@ -74,49 +77,50 @@ export const CancelDialog: React.FC<CancelDialogProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  dialog: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  subtitle: { color: 'gray', marginBottom: 16 },
-  reasonItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#8B5CF6',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioSelected: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#8B5CF6',
-  },
-  reasonText: { fontSize: 16 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20 },
-  cancelBtn: { padding: 12, marginRight: 8 },
-  cancelText: { color: 'gray', fontWeight: '600' },
-  confirmBtn: { backgroundColor: 'red', padding: 12, borderRadius: 8 },
-  disabled: { opacity: 0.5 },
-  confirmText: { color: 'white', fontWeight: 'bold' },
-});
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    dialog: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
+      padding: 24,
+      width: '100%',
+      maxWidth: 400,
+    },
+    title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: theme.colors.text },
+    subtitle: { color: theme.colors.textSecondary, marginBottom: 16 },
+    reasonItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    radio: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+      marginRight: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    radioSelected: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: theme.colors.primary,
+    },
+    reasonText: { fontSize: 16, color: theme.colors.text },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20 },
+    cancelBtn: { padding: 12, marginRight: 8 },
+    cancelText: { color: theme.colors.textSecondary, fontWeight: '600' },
+    confirmBtn: { backgroundColor: theme.colors.error, padding: 12, borderRadius: 8 },
+    disabled: { opacity: 0.5 },
+    confirmText: { color: theme.colors.white, fontWeight: 'bold' },
+  });

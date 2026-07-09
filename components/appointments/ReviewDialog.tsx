@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useReviewStore } from '@/stores/reviewService';
-
-const PURPLE = '#8B5CF6';
+import { useTheme } from '@/providers/ThemeProvider';
 
 interface ReviewDialogProps {
   visible: boolean;
@@ -30,6 +29,8 @@ export const ReviewDialog: React.FC<ReviewDialogProps> = ({
   userName,
   onClose,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const { createReview, isLoading, error, } = useReviewStore();
@@ -66,7 +67,7 @@ export const ReviewDialog: React.FC<ReviewDialogProps> = ({
                     <Ionicons
                       name={i <= rating ? 'star' : 'star-outline'}
                       size={36}
-                      color="gold"
+                      color={theme.colors.warning}
                       style={styles.star}
                     />
                   </TouchableOpacity>
@@ -76,6 +77,7 @@ export const ReviewDialog: React.FC<ReviewDialogProps> = ({
               <TextInput
                 style={styles.input}
                 placeholder="Share your experience (optional)"
+                placeholderTextColor={theme.colors.textDisabled}
                 value={comment}
                 onChangeText={setComment}
                 multiline
@@ -95,7 +97,7 @@ export const ReviewDialog: React.FC<ReviewDialogProps> = ({
                   disabled={rating === 0 || isLoading}
                 >
                   {isLoading ? (
-                    <ActivityIndicator size="small" color="white" />
+                    <ActivityIndicator size="small" color={theme.colors.white} />
                   ) : (
                     <Text style={styles.submitText}>Submit</Text>
                   )}
@@ -109,38 +111,40 @@ export const ReviewDialog: React.FC<ReviewDialogProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  dialog: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
-  subtitle: { color: 'gray', marginBottom: 16, textAlign: 'center' },
-  stars: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
-  star: { marginHorizontal: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    minHeight: 80,
-    marginBottom: 16,
-  },
-  error: { color: 'red', marginBottom: 12, textAlign: 'center' },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end' },
-  cancelBtn: { padding: 12, marginRight: 8 },
-  cancelText: { color: 'gray', fontWeight: '600' },
-  submitBtn: { backgroundColor: PURPLE, padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center' },
-  disabled: { opacity: 0.5 },
-  submitText: { color: 'white', fontWeight: 'bold' },
-});
+const getStyles = (theme: any) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    dialog: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 20,
+      padding: 24,
+      width: '100%',
+      maxWidth: 400,
+    },
+    title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, textAlign: 'center', color: theme.colors.text },
+    subtitle: { color: theme.colors.textSecondary, marginBottom: 16, textAlign: 'center' },
+    stars: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
+    star: { marginHorizontal: 4 },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 8,
+      padding: 12,
+      minHeight: 80,
+      marginBottom: 16,
+      color: theme.colors.text,
+    },
+    error: { color: theme.colors.error, marginBottom: 12, textAlign: 'center' },
+    actions: { flexDirection: 'row', justifyContent: 'flex-end' },
+    cancelBtn: { padding: 12, marginRight: 8 },
+    cancelText: { color: theme.colors.textSecondary, fontWeight: '600' },
+    submitBtn: { backgroundColor: theme.colors.primary, padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center' },
+    disabled: { opacity: 0.5 },
+    submitText: { color: theme.colors.white, fontWeight: 'bold' },
+  });
