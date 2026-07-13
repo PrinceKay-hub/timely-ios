@@ -381,7 +381,7 @@ export default function AppointmentsScreen() {
 
 const getStyles = (theme: any) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.surface },
+    container: { flex: 1, backgroundColor: theme.colors.surface, paddingBottom: 100, },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: {
       backgroundColor: theme.colors.primary,
@@ -403,13 +403,13 @@ const getStyles = (theme: any) =>
     },
     tabBar: {
       backgroundColor: theme.colors.card,
-      marginHorizontal: 20,
+      marginHorizontal: 10,
       marginTop: 20,
       borderRadius: 15,
       elevation: 2,
     },
     tabLabel: {
-      fontSize: 12,
+      fontSize: 10,
       fontWeight: '600',
     },
     listContainer: {

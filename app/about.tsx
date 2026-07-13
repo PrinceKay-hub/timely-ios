@@ -75,7 +75,7 @@ export default function AboutScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: colors.primary }]}>
-          <TouchableOpacity onPress={handleBack} style={[styles.backButton, { backgroundColor: colors.background }]}>
+          <TouchableOpacity onPress={handleBack} style={[styles.backButton, { backgroundColor: '#fff' }]}>
             <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Timely</Text>

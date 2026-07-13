@@ -166,6 +166,7 @@ const getStyles = (theme: any) =>
     root: {
       flex: 1,
       backgroundColor: theme.colors.gray100,
+      paddingBottom: 70,
     },
     scroll: {
       flex: 1,

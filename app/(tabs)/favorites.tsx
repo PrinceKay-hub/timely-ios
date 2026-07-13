@@ -336,6 +336,7 @@ const getStyles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.colors.background,
       paddingTop: STATUS_H,
+      paddingBottom: 70,
     },
 
     // ── List ──

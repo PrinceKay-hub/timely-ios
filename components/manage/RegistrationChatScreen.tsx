@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useRegistrationChat, ExtractedRegistration } from '@/hooks/useRegistrationChat';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useRouter } from 'expo-router';
 
 interface Props {
   categoryNames: string[];
@@ -77,11 +78,15 @@ export const RegistrationChatScreen: React.FC<Props> = ({
   const { theme } = useTheme();
   const colors = theme.colors;
 
+  const router = useRouter();
+
   // Dynamic styles
   const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   const [input, setInput] = useState('');
   const listRef = useRef<FlatList>(null);
+
+  const handleBack = () => router.back();
 
   const handleSend = () => {
     if (!input.trim() || isLoading || isComplete) return;
@@ -100,6 +105,12 @@ export const RegistrationChatScreen: React.FC<Props> = ({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
     >
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+                <TouchableOpacity onPress={handleBack} style={[styles.backButton, { backgroundColor: '#fff' }]}>
+                  <Ionicons name="arrow-back" size={24} color={colors.primary} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Ai Assistant</Text>
+              </View>
       <FlatList
         ref={listRef}
         data={displayData}
@@ -180,6 +191,25 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
   },
+  header: {
+      paddingTop: 50,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingBottom: 12,
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+    },
+    backButton: {
+      borderRadius: 20,
+      padding: 8,
+      marginRight: 16,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#fff',
+    },
   handoffRow: {
     flexDirection: 'row',
     alignItems: 'center',

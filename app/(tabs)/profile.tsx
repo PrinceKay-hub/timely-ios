@@ -10,7 +10,7 @@ import {
   Platform,
   StatusBar,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '@/firebase';
@@ -466,6 +466,11 @@ export default function Profile({ user }: ProfileScreenProps) {
       title: 'My Favorites',
       onPress: () => navigation.navigate('favorites'),
     },
+    {
+      icon: '✨',
+      title: 'Try-On History',
+       onPress: () => router.push('/tryon-viewer'),
+    },
   ];
 
   const supportItems = [
@@ -562,7 +567,7 @@ export default function Profile({ user }: ProfileScreenProps) {
             </View>
           </View>
           <View style={styles.sectionGap} />
-          <MenuSection title="Account Settings" items={accountItems} colors={colors} styles={styles} />
+          <MenuSection title="Account" items={accountItems} colors={colors} styles={styles} />
           <View style={styles.sectionGap} />
           <MenuSection title="Support" items={supportItems} colors={colors} styles={styles} />
           <View style={styles.sectionGap} />
@@ -604,7 +609,7 @@ export default function Profile({ user }: ProfileScreenProps) {
               <Text style={[styles.deleteAccountTitle, { color: colors.error }]}>
                 Delete Account
               </Text>
-              <Text style={[styles.deleteAccountSubtitle, { color: colors.errorLight || '#f87171' }]}>
+              <Text style={[styles.deleteAccountSubtitle, { color: '#f87171' }]}>
                 Permanently remove your account & data
               </Text>
             </View>
@@ -636,6 +641,7 @@ const createStyles = (colors: any) =>
     root: {
       flex: 1,
       backgroundColor: colors.surface || '#f3f4f6',
+      paddingBottom: 100,
     },
     scrollContent: {
       flexGrow: 1,

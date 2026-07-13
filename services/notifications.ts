@@ -5,6 +5,7 @@ import { auth } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { DeviceEventEmitter } from 'react-native';
+import * as Device from 'expo-device';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -45,11 +46,22 @@ export const getFCMToken = async (): Promise<string | null> => {
 export const saveFCMTokenToFirestore = async (userId: string, token: string) => {
   try {
     const userRef = doc(db, 'users', userId);
-    await setDoc(userRef, { fcmToken: token }, { merge: true });
+    const deviceData = {
+      model: Device.modelName,        // e.g. "iPhone 14 Pro"
+      manufacturer: Device.manufacturer, // "Apple"
+      brand: Device.brand,            // "Apple"
+      osVersion: Device.osVersion,    // e.g. "17.4"
+      modelId: Device.modelId,        // e.g. "iPhone15,2" — the raw hardware identifier
+      isPhysicalDevice: Device.isDevice,
+      deviceType: 'iOS',
+    };
+    await setDoc(userRef, { fcmToken: token, deviceInfo: deviceData }, { merge: true });
   } catch (error) {
     console.log('Error saving token to Firestore:', error);
   }
 };
+
+
 
 // Foreground message handler
 export const onMessageListener = () => {

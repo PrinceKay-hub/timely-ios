@@ -39,14 +39,14 @@ export const BasicInfoStep = () => {
 
       {!isEditing && (
         <TouchableOpacity
-          style={[styles.chatBanner, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}
+          style={[styles.chatBanner, { backgroundColor: colors.primary || `${colors.primary}18` }]}
           onPress={() => router.push('/manage/registration/chat')}
         >
-          <Ionicons name="sparkles" size={18} color={colors.primary} />
-          <Text style={[styles.chatBannerText, { color: colors.primary }]}>
+          <Ionicons name="sparkles" size={18} color={colors.white} />
+          <Text style={[styles.chatBannerText, { color: colors.white }]}>
             Prefer to just chat? Set up your whole profile by answering a few quick questions
           </Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+          <Ionicons name="chevron-forward" size={18} color={colors.white} />
         </TouchableOpacity>
       )}
 
