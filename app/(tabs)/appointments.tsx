@@ -8,6 +8,7 @@ import {
   Dimensions,
   Platform,
   FlatList,
+  TouchableOpacity
 } from 'react-native';
 import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
 import { useRouter } from 'expo-router';
@@ -16,10 +17,10 @@ import { useBookingStore } from '@/stores/bookingStore';
 import { AppointmentCard } from '@/components/appointments/AppointmentCard';
 import { StatBadge } from '@/components/appointments/StatBadge';
 import { CancelDialog } from '@/components/appointments/CancelDialog';
-import { ConfirmDialog } from '@/components/appointments/ConfirmDialog'; 
-import { DeleteDialog } from '@/components/appointments/DeleteDialog'; 
-import { RescheduleDialog } from '@/components/appointments/RescheduleDialog'; 
-import { ReviewDialog } from '@/components/appointments/ReviewDialog'; 
+import { ConfirmDialog } from '@/components/appointments/ConfirmDialog';
+import { DeleteDialog } from '@/components/appointments/DeleteDialog';
+import { RescheduleDialog } from '@/components/appointments/RescheduleDialog';
+import { ReviewDialog } from '@/components/appointments/ReviewDialog';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { BookingEntity } from '@/types/booking';
@@ -120,6 +121,8 @@ export default function AppointmentsScreen() {
     userBookings,
     isLoading,
     error,
+    successMessage,
+    clearMessages,
     startListening,
     stopListening,
     cancelBooking,
@@ -130,7 +133,7 @@ export default function AppointmentsScreen() {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'pending', title: 'Pending' },
-    { key: 'confirmed', title: 'Confirmed' },
+    { key: 'confirmed', title: 'Upcoming' },
     { key: 'cancelled', title: 'Cancelled' },
     { key: 'completed', title: 'Completed' },
   ]);
@@ -146,21 +149,30 @@ export default function AppointmentsScreen() {
   const completed = userBookings.filter(b => b.status === 'completed');
 
   useEffect(() => {
-  if (user?.uid) {
-    startListening(user.uid);
-  } else {
-    stopListening();
-  }
-  return () => {
-    stopListening();
-  };
-}, [user]);
+    if (user?.uid) {
+      startListening(user.uid);
+    } else {
+      stopListening();
+    }
+    return () => {
+      stopListening();
+    };
+  }, [user]);
 
   useEffect(() => {
     if (error) {
       Alert.alert('Error', error);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (successMessage) {
+      Alert.alert('Success', successMessage, [
+        { text: 'OK' },
+      ]);
+      clearMessages();
+    }
+  }, [successMessage]);
 
   const handleDirections = async (lat: number, lng: number) => {
     setIsDirectionsLoading(true);
@@ -206,10 +218,10 @@ export default function AppointmentsScreen() {
         }}
         onDirections={(booking) => handleDirections(booking.latitude, booking.longitude)}
         onRebook={(booking) => {
-         router.push({
-                pathname: '/rebook/[id]',
-                params: { id: booking.id }
-            })
+          router.push({
+            pathname: '/rebook/[id]',
+            params: { id: booking.id }
+          })
         }}
         onDelete={(booking) => {
           setSelectedBooking(booking);
@@ -221,9 +233,9 @@ export default function AppointmentsScreen() {
         }}
         onBookAgain={(booking) => {
           router.push({
-                pathname: '/booking/[id]',
-                params: { id: booking.id }
-            })
+            pathname: '/booking/[id]',
+            params: { id: booking.id }
+          })
         }}
       />
     ),
@@ -245,9 +257,9 @@ export default function AppointmentsScreen() {
         status="cancelled"
         user={user}
         onRebook={(booking) => router.push({
-                pathname: '/rebook/[id]',
-                params: { id: booking.id }
-            })}
+          pathname: '/rebook/[id]',
+          params: { id: booking.id }
+        })}
         onDelete={(booking) => {
           setSelectedBooking(booking);
           setDialogType('delete');
@@ -265,9 +277,9 @@ export default function AppointmentsScreen() {
         }}
         onBookAgain={(booking) => {
           router.push({
-                pathname: '/booking/[id]',
-                params: { id: booking.id }
-            })
+            pathname: '/booking/[id]',
+            params: { id: booking.id }
+          })
         }}
       />
     ),
@@ -288,7 +300,7 @@ export default function AppointmentsScreen() {
         <Text style={styles.headerTitle}>My Appointments</Text>
         <View style={styles.statsRow}>
           <StatBadge count={pending.length} label="Pending" />
-          <StatBadge count={confirmed.length} label="Confirmed" />
+          <StatBadge count={confirmed.length} label="Upcoming" />
           <StatBadge count={cancelled.length} label="Cancelled" />
         </View>
       </View>
@@ -300,14 +312,27 @@ export default function AppointmentsScreen() {
         onIndexChange={setIndex}
         initialLayout={{ width }}
         renderTabBar={(props) => (
-          <TabBar
-            {...props}
-            indicatorStyle={{ backgroundColor: theme.colors.primary }}
-            style={styles.tabBar}
-            labelStyle={styles.tabLabel}
-            activeColor={theme.colors.primary}
-            inactiveColor={theme.colors.textSecondary}
-          />
+          <View style={styles.customTabBar}>
+            {props.navigationState.routes.map((route) => {
+              const isActive = route.key === props.navigationState.routes[props.navigationState.index].key;
+              return (
+                <TouchableOpacity
+                  key={route.key}
+                  style={[styles.tabItem, isActive && styles.tabItemActive]}
+                  onPress={() => props.jumpTo(route.key)} 
+                >
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      isActive && styles.tabLabelActive,
+                    ]}
+                  >
+                    {route.title}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
       />
 
@@ -351,8 +376,8 @@ export default function AppointmentsScreen() {
           booking={selectedBooking}
           onReschedule={() => {
             router.push({
-                pathname: '/reschedule/[id]',
-                params: { id: selectedBooking.id }
+              pathname: '/reschedule/[id]',
+              params: { id: selectedBooking.id }
             })
             closeDialog();
           }}
@@ -408,10 +433,6 @@ const getStyles = (theme: any) =>
       borderRadius: 15,
       elevation: 2,
     },
-    tabLabel: {
-      fontSize: 10,
-      fontWeight: '600',
-    },
     listContainer: {
       padding: 20,
     },
@@ -431,5 +452,32 @@ const getStyles = (theme: any) =>
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
       alignItems: 'center',
+    },
+
+    customTabBar: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.card,
+      marginHorizontal: 10,
+      marginTop: 20,
+      borderRadius: 15,
+      elevation: 2,
+      paddingVertical: 4,
+    },
+    tabItem: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 12,
+    },
+    tabItemActive: {
+      backgroundColor: theme.colors.primary + '20', 
+    },
+    tabLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    tabLabelActive: {
+      color: theme.colors.primary,
     },
   });

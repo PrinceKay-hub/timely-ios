@@ -2,7 +2,6 @@ import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
   Modal,
   SafeAreaView,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { PortfolioImage } from '@/types/portfolio';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 const { width, height } = Dimensions.get('window');
 
@@ -58,7 +58,13 @@ const PortfolioViewer: React.FC<Props> = ({
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={styles.imageContainer}>
-              <Image source={{ uri: item.imageUrl }} style={styles.fullImage} resizeMode="contain" />
+              <Image 
+              source={{ uri: item.imageUrl }} 
+              style={styles.fullImage} 
+              contentFit="cover"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
+              />
             </View>
           )}
           initialScrollIndex={initialIndex}

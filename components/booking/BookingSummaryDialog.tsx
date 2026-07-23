@@ -9,7 +9,7 @@ interface Props {
   serviceName: string;
   date: Date;
   timeString: string;
-  totalPrice: number;
+  totalPrice: string;
   onConfirm: () => void;
 }
 

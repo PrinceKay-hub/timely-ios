@@ -1,17 +1,19 @@
 import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
-  ScrollView,
   StyleSheet,
   Platform,
   StatusBar,
   RefreshControl,
+  ScrollView,
+  Text,
+  FlatList,
+  ActivityIndicator
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
-// Stores
 import { useAuthStore } from '@/stores/auth';
 import messaging from '@react-native-firebase/messaging';
 import { useHomeStore } from '@/stores/home';
@@ -19,23 +21,20 @@ import { useServiceDataStore } from '@/stores/serviceData';
 import { useConnectivityStore, initConnectivityListener } from '@/stores/connectivityStore';
 import { useTheme } from '@/providers/ThemeProvider';
 
-// Widgets
 import { ModernAppBar } from '../../components/mordenappbar';
 import { SpecialOffersCard } from '../../components/specialofferscard';
 import { CategoriesSection } from '../../components/categoriesscetion';
 import { RecommendedSection } from '../../components/recommendedsection';
-
-// Snackbar
 import { Snackbar } from '../../components/Snackbar';
+import { ResultCard } from '@/components/search/ResultCard';
 
 export default function Home() {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
-
-  // Stores
+  const colors = theme.colors;
   const { user, profile } = useAuthStore();
   const { loadCategories, updateLocation } = useHomeStore();
-  const { fetchServiceData } = useServiceDataStore();
+  const {services, fetchServiceData } = useServiceDataStore();
   const status = useConnectivityStore((state) => state.status);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,7 +47,7 @@ export default function Home() {
     email: profile?.email || user?.email,
     fcmToken: profile?.fcmToken || user?.fcmToken,
     expoPushToken: profile?.expoPushToken || user?.expoPushToken,
-    isEmailVerified: profile?.isEmailVerified || user?.isEmailVerified
+    isEmailVerified: profile?.isEmailVerified || user?.isEmailVerified,
   };
 
   useEffect(() => {
@@ -59,25 +58,23 @@ export default function Home() {
   }, [user]);
 
   const _initHome = useCallback(async () => {
-    loadCategories();
-    updateLocation();
+  loadCategories();
+  updateLocation();
+  if (services.length === 0) {
     fetchServiceData();
-  }, []);
+  }
+}, [loadCategories, updateLocation, fetchServiceData, services.length]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadCategories(),
-        updateLocation(),
-        fetchServiceData(),
-      ]);
+      await Promise.all([loadCategories(),  fetchServiceData()]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [loadCategories, updateLocation, fetchServiceData]);
+  }, [loadCategories, fetchServiceData]);
 
   const _savePushToken = useCallback(async () => {
     if (!user || !user.uid) return;
@@ -109,26 +106,16 @@ export default function Home() {
 
   useEffect(() => {
     initConnectivityListener();
-    if (status === 'offline') {
-      setSnackbarVisible(true);
-    } else {
-      setSnackbarVisible(false);
-    }
+    setSnackbarVisible(status === 'offline');
   }, [status]);
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => {};
-    }, [])
-  );
+
 
   return (
     <View style={styles.root}>
-      <StatusBar translucent backgroundColor="transparent" barStyle={theme.colors.statusBar} />
-      {/* App bar is outside the scroll view */}
+      <StatusBar translucent backgroundColor="transparent"  />
       <ModernAppBar user={userInfo} />
-      
-      <ScrollView
+      <ScrollView 
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -143,11 +130,9 @@ export default function Home() {
           />
         }
       >
-        <View style={styles.body}>
-          <SpecialOffersCard user={userInfo} />
-          <CategoriesSection user={userInfo} />
-          <RecommendedSection user={userInfo} />
-        </View>
+        <SpecialOffersCard user={userInfo} />
+        <CategoriesSection user={userInfo} />
+        <RecommendedSection/>
       </ScrollView>
 
       <Snackbar
@@ -168,14 +153,20 @@ const getStyles = (theme: any) =>
       backgroundColor: theme.colors.gray100,
       paddingBottom: 70,
     },
-    scroll: {
+    listContent: { padding: 20 },
+     scroll: {
       flex: 1,
     },
     scrollContent: {
       flexGrow: 1,
       paddingBottom: 32,
     },
-    body: {
+    loadingWrap: {
       flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 40,
+      gap: 16,
     },
+    loadingText: { fontSize: 15 },
   });

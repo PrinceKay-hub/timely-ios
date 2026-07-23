@@ -129,17 +129,18 @@ const PortfolioScreen = ({ route, navigation }: any) => {
   // Loading overlay that appears when `loading` is true
   const LoadingOverlay = () => (
     <Modal transparent visible={loading} animationType="fade">
-      <View style={[styles.loadingOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+      <View style={[styles.loadingOverlay, { backgroundColor: colors.surface }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: '#fff' }]}>Loading...</Text>
       </View>
+      
     </Modal>
   );
 
   if (loading && images.length === 0) {
     return (
       <Modal transparent visible={loading} animationType="fade">
-        <View style={[styles.loadingOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+        <View style={[styles.loadingOverlay, { backgroundColor: colors.surface }]}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: '#fff' }]}>Loading portfolio...</Text>
         </View>
@@ -165,7 +166,7 @@ const PortfolioScreen = ({ route, navigation }: any) => {
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.background }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: '#fff' }]}>
           <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Portfolio</Text>

@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 interface ResultCardProps {
   item: any;
@@ -42,7 +42,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
         <Image
           source={{ uri: item.images?.[0] }}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={200}
+          placeholder={colors.surface || '#f3f4f6'}
         />
         <View style={[styles.favoriteIcon, { backgroundColor: colors.background }]}>
           <Ionicons name="heart-outline" size={20} color={colors.primary} />
@@ -66,7 +68,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
             {item.rating?.toFixed(1) || '0.0'}
           </Text>
           <Text style={[styles.reviews, { color: colors.textSecondary }]}>
-            ({item.reviews || 0} reviews)
+            ({item.totalReviews || 0} reviews)
           </Text>
           <View style={styles.distance}>
             <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
@@ -78,8 +80,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
 
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-          <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
-            {item.location || 'Unknown location'}
+          <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={2}>
+            {item.district || 'Unknown location'}
+            {item.landmark ? `, ${item.landmark}` : ''}
           </Text>
         </View>
 
@@ -88,7 +91,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
           <View style={styles.serviceChips}>
             {services.map((service: any, i: number) => (
               <View key={i} style={[styles.chip, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
-                <Text style={[styles.chipText, { color: colors.primary }]}>
+                <Text style={[styles.chipText, { color: '#fff' }]}>
                   {typeof service === 'object' ? service.name : String(service)}
                 </Text>
               </View>

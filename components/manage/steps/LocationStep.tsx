@@ -15,21 +15,16 @@ import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { useSelectedLocationStore } from '@/stores/selectedLocationStore';
 import { useTheme } from '@/providers/ThemeProvider';
 
-type CoordinateSource = 'gps' | 'approximate' | null;
-
 export const LocationStep = () => {
   const router = useRouter();
   const { currentService, updateServiceField } = useServiceRegistrationStore();
   const { selectedLocation } = useSelectedLocationStore();
   const { theme } = useTheme();
   const colors = theme.colors;
-
-  // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
-  const [coordinateSource, setCoordinateSource] = useState<CoordinateSource>(null);
 
   const hasCoordinates =
     currentService?.latitude != null &&
@@ -38,6 +33,25 @@ export const LocationStep = () => {
 
   const handleSelectRegion = async () => {
     router.push('/location/regions?isService=true');
+  };
+
+  // ── Show confirmation dialog before getting location ──
+  const showCautionDialog = () => {
+    Alert.alert(
+      'Confirm Location',
+      'Are you at the precise location of your business? Setting an accurate location helps customers find you easily. You can adjust it later.',
+      [
+        {
+          text: 'No, I will set it later',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes, I am there',
+          onPress: handleGetCurrentLocation,
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   const handleGetCurrentLocation = async () => {
@@ -51,7 +65,6 @@ export const LocationStep = () => {
       const loc = await Location.getCurrentPositionAsync({});
       updateServiceField('latitude', loc.coords.latitude);
       updateServiceField('longitude', loc.coords.longitude);
-      setCoordinateSource('gps');
     } catch (error) {
       Alert.alert('Error', 'Could not get current location');
     } finally {
@@ -59,7 +72,7 @@ export const LocationStep = () => {
     }
   };
 
-  // Parse selectedLocation into region and district, then geocode it
+  // ── Parse selectedLocation into region/district and geocode ──
   useEffect(() => {
     if (!selectedLocation || selectedLocation === 'Select Location') return;
 
@@ -73,7 +86,8 @@ export const LocationStep = () => {
     }
     updateServiceField('location', selectedLocation);
 
-    if (coordinateSource === 'gps') return;
+    // Only geocode if we don't have GPS coordinates
+    if (hasCoordinates) return;
 
     const geocodeRegion = async () => {
       setIsGeocoding(true);
@@ -82,7 +96,6 @@ export const LocationStep = () => {
         if (results.length > 0) {
           updateServiceField('latitude', results[0].latitude);
           updateServiceField('longitude', results[0].longitude);
-          setCoordinateSource('approximate');
         }
       } catch (error) {
         console.warn('Geocoding failed for', selectedLocation, error);
@@ -111,6 +124,12 @@ export const LocationStep = () => {
         updateServiceField('number', '+233');
       }
     }
+  };
+
+  // Determine button label
+  const getButtonLabel = () => {
+    if (hasCoordinates) return 'Location set - Tap to update';
+    return "I'm at the premises now";
   };
 
   return (
@@ -149,7 +168,7 @@ export const LocationStep = () => {
                 backgroundColor: colors.surface,
               }
             ]}
-            onPress={handleGetCurrentLocation}
+            onPress={showCautionDialog}
             disabled={isLocating}
           >
             {isLocating ? (
@@ -158,38 +177,68 @@ export const LocationStep = () => {
               <>
                 <Ionicons name="locate-outline" size={20} color={colors.primary} />
                 <Text style={[styles.currentLocText, { color: colors.primary }]}>
-                  {coordinateSource === 'gps' ? 'Update precise location' : "I'm at the premises now"}
+                  {getButtonLabel()}
                 </Text>
               </>
             )}
           </TouchableOpacity>
           {isGeocoding && <ActivityIndicator size="small" color={colors.primary} />}
           {!isGeocoding && hasCoordinates && (
-            <Ionicons
-              name="checkmark-circle"
-              size={24}
-              color={coordinateSource === 'gps' ? colors.success || 'green' : colors.warning || '#F59E0B'}
-            />
+            <Ionicons name="checkmark-circle" size={24} color={colors.success || 'green'} />
           )}
         </View>
 
-        {hasCoordinates && coordinateSource === 'approximate' && (
+        {/* ── Show coordinates if set ── */}
+        {hasCoordinates && (
+          <Text style={[styles.coordinatesText, { color: colors.textSecondary }]}>
+            Coordinates: {currentService?.latitude?.toFixed(6)}, {currentService?.longitude?.toFixed(6)}
+          </Text>
+        )}
+
+        {/* ── Orange info box (shown only when coordinates are NOT set) ── */}
+        {!hasCoordinates && !isLocating && !isGeocoding && (
           <View style={[
-            styles.approxNote,
+            styles.infoBox,
             {
-              backgroundColor: colors.warningLight || '#FFFBEB',
+              backgroundColor: colors.warning || '#FF8C00',
             }
           ]}>
-            <Ionicons name="information-circle-outline" size={16} color={'#000'} />
-            <Text style={[styles.approxNoteText, { color: '#000' }]}>
-              We've set an approximate pin based on your selected area. Tap the
-              button above if you're at the premises to set an exact location.
+            <Ionicons name="information-circle-outline" size={16} color="#fff" />
+            <Text style={[styles.infoBoxText, { color: '#fff' }]}>
+              Tap the button above if you are at your business premises to set an exact location.
             </Text>
           </View>
         )}
 
-        <Text style={[styles.label, { color: colors.text, marginTop: 24 }]}>
-          Phone Number (Don't start with "0")
+        {/* ── Nearest Landmark ── */}
+        <Text style={[styles.label, { color: colors.text, marginTop: 16 }]}>
+          Nearest Landmark
+        </Text>
+        <View style={[
+          styles.inputRow,
+          {
+            borderColor: colors.border || '#ddd',
+            backgroundColor: colors.surface,
+          }
+        ]}>
+          <Ionicons name="map-outline" size={20} color={colors.primary} style={{ marginLeft: 12 }} />
+          <TextInput
+            style={[styles.inputField, { color: colors.text }]}
+            value={currentService?.landmark || ''}
+            onChangeText={(text) => updateServiceField('landmark', text)}
+            placeholder="e.g., Adum opposite PZ"
+            placeholderTextColor={colors.textSecondary || '#999'}
+          />
+        </View>
+        <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+          Helps customers find you when GPS isn't precise enough.
+        </Text>
+
+      </View>
+      <View style={[styles.card, { backgroundColor: colors.card || colors.background }]}>
+
+        <Text style={[styles.label, { color: colors.text,}]}>
+          Business Number (Don't start with "0")
         </Text>
         <TextInput
           style={[
@@ -207,8 +256,11 @@ export const LocationStep = () => {
           placeholderTextColor={colors.textSecondary || '#999'}
           keyboardType="phone-pad"
         />
-        <Text style={[styles.hintText, { color: colors.textSecondary }]}>
+        <Text style={[styles.helperText, { color: colors.textSecondary }]}>
           e.g., 244 123456 (automatically adds +233)
+        </Text>
+        <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+          This is the number customers can use to contact you.
         </Text>
       </View>
     </View>
@@ -221,7 +273,7 @@ const createStyles = (colors: any) =>
     container: { flex: 1, paddingHorizontal: 20 },
     title: { fontSize: 28, fontWeight: 'bold', marginTop: 16, marginBottom: 8 },
     subtitle: { fontSize: 16, marginBottom: 24 },
-    card: { borderRadius: 15, padding: 16 },
+    card: { borderRadius: 15, padding: 16, marginBottom: 8, borderWidth: 0.5, borderColor: '#ddd' },
     label: { fontWeight: '600', fontSize: 14, marginBottom: 8 },
     locationPicker: {
       flexDirection: 'row',
@@ -232,7 +284,7 @@ const createStyles = (colors: any) =>
       marginBottom: 16,
     },
     locationText: { flex: 1, marginLeft: 8 },
-    row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 12 },
+    row: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 12 },
     currentLocButton: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -242,7 +294,8 @@ const createStyles = (colors: any) =>
       paddingHorizontal: 16,
     },
     currentLocText: { marginLeft: 8, fontWeight: '600' },
-    approxNote: {
+    coordinatesText: { fontSize: 12, marginLeft: 4, marginBottom: 8 },
+    infoBox: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       borderRadius: 10,
@@ -250,14 +303,27 @@ const createStyles = (colors: any) =>
       marginBottom: 16,
       gap: 6,
     },
-    approxNoteText: { fontSize: 12, flex: 1, lineHeight: 16 },
+    infoBoxText: { fontSize: 12, flex: 1, lineHeight: 16 },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderRadius: 12,
+      marginBottom: 4,
+    },
+    inputField: {
+      flex: 1,
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      fontSize: 16,
+    },
     input: {
       borderWidth: 1,
       borderRadius: 12,
       padding: 14,
       fontSize: 16,
     },
-    hintText: {
+    helperText: {
       fontSize: 12,
       marginTop: 4,
       marginLeft: 4,

@@ -19,7 +19,6 @@ export interface SearchParams {
  */
 export const searchProviders = async (params: SearchParams): Promise<any[]> => {
   try {
-    console.log('Search params:', params);
 
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -41,8 +40,6 @@ export const searchProviders = async (params: SearchParams): Promise<any[]> => {
       page: params.page ?? 1,
       pageSize: params.pageSize ?? 20,
     });
-
-    console.log('Cloud Function response:', result.data);
     const data = result.data as any;
     return data.providers || [];
   } catch (error) {

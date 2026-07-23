@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,44 +15,6 @@ import { ServiceRegistrationForm } from '@/components/manage/ServiceRegistration
 import { ServiceOverviewCard } from '@/components/manage/ServiceOverviewCard';
 import { useTheme } from '@/providers/ThemeProvider';
 
-interface MenuItemConfig {
-  icon: string;
-  title: string;
-  onPress: () => void;
-  trailing?: React.ReactNode;
-}
-
-// ─── Menu section (themed via props) ──────────────────────────────────────
-const MenuSection: React.FC<{
-  title: string;
-  items: MenuItemConfig[];
-  styles: any;
-  colors: any;
-}> = ({ title, items, styles, colors }) => (
-  <View style={styles.menuSection}>
-    <Text style={styles.menuSectionTitle}>{title}</Text>
-    {items.map((item, index) => (
-      <TouchableOpacity
-        key={item.title}
-        style={[
-          styles.menuItem,
-          index < items.length - 1 && styles.menuItemBorder,
-        ]}
-        onPress={item.onPress}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.menuIconBox, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
-          <Text style={styles.menuIconText}>{item.icon}</Text>
-        </View>
-        <Text style={styles.menuItemTitle}>{item.title}</Text>
-        {item.trailing ?? (
-          <Text style={styles.menuChevron}>›</Text>
-        )}
-      </TouchableOpacity>
-    ))}
-  </View>
-);
-
 export default function ServiceRegistrationScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId: string }>();
@@ -61,18 +22,18 @@ export default function ServiceRegistrationScreen() {
   const { theme } = useTheme();
   const colors = theme.colors;
 
-  // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const {
-    existingService,
+    services,
     isLoading,
     error,
     step,
     setStep,
     currentService,
     saveService,
-    loadServiceByProvider,
+    loadServicesByProvider,
+    startNewService,
     clearError,
   } = useServiceRegistrationStore();
 
@@ -80,13 +41,16 @@ export default function ServiceRegistrationScreen() {
 
   useEffect(() => {
     if (effectiveUserId) {
-      loadServiceByProvider(effectiveUserId);
+      loadServicesByProvider(effectiveUserId);
     }
   }, [effectiveUserId]);
 
+  // Errors now surface via Toast directly from the store (saveService,
+  // updateExistingService, deleteExistingService all show an error toast
+  // on failure) — clearError() still runs so stale error state doesn't
+  // linger, but we no longer duplicate it with an Alert dialog.
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error);
       clearError();
     }
   }, [error]);
@@ -153,39 +117,21 @@ export default function ServiceRegistrationScreen() {
     );
   }
 
-  // ── Menu definitions ──────────────────────────────────────────────────────
-  const accountItems = [
-    {
-      icon: '📷',
-      title: 'Portfolio',
-      onPress: () => {
-        router.push({
-          pathname: '/portfolio/portfolioscreen',
-          params: {
-            id: existingService?.id,
-            serviceName: existingService?.name,
-          },
-        });
-      },
-    },
-  ];
-
-  // Form mode (step > 0)
+  // Form mode (step > 0) — same for both "add another" and "edit"
   if (step > 0) {
     return (
       <View style={[styles.container, { backgroundColor: colors.surface }]}>
-        {/* Progress header */}
         <View style={[styles.progressHeader, { backgroundColor: colors.primary }]}>
           <TouchableOpacity
             onPress={handleBack}
-            style={[styles.backButton, { backgroundColor: colors.background }]}
+            style={[styles.backButton, { backgroundColor: '#fff' }]}
           >
             <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.stepText}>Step {step} of 7</Text>
           <TouchableOpacity
             onPress={handleClose}
-            style={[styles.closeButton, { backgroundColor: colors.background }]}
+            style={[styles.closeButton, { backgroundColor: '#fff' }]}
           >
             <Ionicons name="close" size={24} color={colors.primary} />
           </TouchableOpacity>
@@ -198,7 +144,6 @@ export default function ServiceRegistrationScreen() {
           <ServiceRegistrationForm userId={effectiveUserId!} />
         </ScrollView>
 
-        {/* Bottom Button */}
         <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border || '#eee' }]}>
           <TouchableOpacity
             style={[styles.nextButton, !canProceed() && styles.disabledButton, { backgroundColor: colors.primary }]}
@@ -214,20 +159,30 @@ export default function ServiceRegistrationScreen() {
     );
   }
 
-  // No service: empty state
-  if (!existingService) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.surface }]}>
-        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+  // Overview mode — list of ALL the provider's services
+  return (
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={[styles.backButton, { backgroundColor: '#fff' }]}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Manage Services ({services.length})</Text>
+        {services.length > 0 ? (
           <TouchableOpacity
-            onPress={handleClose}
-            style={[styles.backButton, { backgroundColor: colors.background }]}
+            onPress={startNewService}
+            style={[styles.backButton, { backgroundColor: '#fff' }]}
           >
-            <Ionicons name="arrow-back" size={24} color={colors.primary} />
+            <Ionicons name="add" size={24} color={colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Manage Service</Text>
+        ) : (
           <View style={{ width: 40 }} />
-        </View>
+        )}
+      </View>
+
+      {services.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="business-outline" size={80} color={colors.primary} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>No Service Yet</Text>
@@ -236,35 +191,30 @@ export default function ServiceRegistrationScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={() => setStep(1)}
+            onPress={startNewService}
           >
             <Text style={styles.addButtonText}>Add Service</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    );
-  }
+      ) : (
+        <ScrollView contentContainerStyle={styles.content}>
+          {services.map((service) => (
+            <View key={service.id} style={styles.serviceCardWrap}>
+              <ServiceOverviewCard service={service} />
+            </View>
+          ))}
 
-  // Existing service overview
-  return (
-    <View style={[styles.container, { backgroundColor: colors.surface }]}>
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity
-          onPress={handleClose}
-          style={[styles.backButton, { backgroundColor: colors.background }]}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Manage Service</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <ServiceOverviewCard service={existingService} />
-        <View style={styles.menuWrap}>
-          <MenuSection title="Extra options" items={accountItems} styles={styles} colors={colors} />
-          <View style={styles.sectionGap} />
-        </View>
-      </ScrollView>
+          <TouchableOpacity
+            style={[styles.addAnotherButton, { borderColor: colors.primary }]}
+            onPress={startNewService}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+            <Text style={[styles.addAnotherText, { color: colors.primary }]}>
+              Add another service
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -282,14 +232,8 @@ const createStyles = (colors: any) =>
       alignItems: 'center',
       justifyContent: 'space-between',
     },
-    backButton: {
-      borderRadius: 20,
-      padding: 8,
-    },
-    closeButton: {
-      borderRadius: 20,
-      padding: 8,
-    },
+    backButton: { borderRadius: 20, padding: 8 },
+    closeButton: { borderRadius: 20, padding: 8 },
     headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
     progressHeader: {
       paddingTop: 50,
@@ -300,36 +244,13 @@ const createStyles = (colors: any) =>
       justifyContent: 'space-between',
     },
     stepText: { color: 'white', fontSize: 14, fontWeight: '600' },
-    progressBar: {
-      height: 4,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-      width: '100%',
-    },
-    progressFill: {
-      height: 4,
-      backgroundColor: 'white',
-    },
-    formContent: {
-      paddingBottom: 20,
-      flexGrow: 1,
-    },
-    footer: {
-      padding: 20,
-      borderTopWidth: 1,
-    },
-    nextButton: {
-      borderRadius: 30,
-      paddingVertical: 16,
-      alignItems: 'center',
-    },
-    disabledButton: {
-      opacity: 0.5,
-    },
-    nextButtonText: {
-      color: 'white',
-      fontSize: 16,
-      fontWeight: 'bold',
-    },
+    progressBar: { height: 4, backgroundColor: 'rgba(255,255,255,0.3)', width: '100%' },
+    progressFill: { height: 4, backgroundColor: 'white' },
+    formContent: { paddingBottom: 20, flexGrow: 1 },
+    footer: { padding: 20, borderTopWidth: 1 },
+    nextButton: { borderRadius: 30, paddingVertical: 16, alignItems: 'center' },
+    disabledButton: { opacity: 0.5 },
+    nextButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
     content: { padding: 20 },
     emptyContainer: {
       flex: 1,
@@ -339,68 +260,21 @@ const createStyles = (colors: any) =>
     },
     emptyTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20, marginBottom: 8 },
     emptySubtitle: { fontSize: 14, textAlign: 'center', marginBottom: 30 },
-    addButton: {
-      borderRadius: 30,
-      paddingVertical: 16,
-      paddingHorizontal: 40,
-    },
+    addButton: { borderRadius: 30, paddingVertical: 16, paddingHorizontal: 40 },
     addButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 
-    // ── Menu wrap ──
-    menuWrap: {
-      marginTop: 24,
-    },
-    sectionGap: {
-      height: 16,
-    },
-
-    // ── Menu section ──
-    menuSection: {
-      backgroundColor: colors.card || colors.background,
-      borderRadius: 15,
-      overflow: 'hidden',
-    },
-    menuSectionTitle: {
-      paddingHorizontal: 16,
-      paddingTop: 14,
-      paddingBottom: 6,
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.textSecondary || '#9ca3af',
-      letterSpacing: 0.3,
-    },
-
-    // ── Menu item ──
-    menuItem: {
+    // ── Multi-service list ──
+    serviceCardWrap: { marginBottom: 16 },
+    addAnotherButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    menuItemBorder: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border || 'rgba(0,0,0,0.07)',
-    },
-    menuIconBox: {
-      width: 38,
-      height: 38,
-      borderRadius: 10,
-      alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 14,
+      gap: 8,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderRadius: 15,
+      paddingVertical: 16,
+      marginTop: 8,
     },
-    menuIconText: {
-      fontSize: 18,
-    },
-    menuItemTitle: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: '500',
-      color: colors.text,
-    },
-    menuChevron: {
-      fontSize: 22,
-      color: colors.textSecondary || '#9ca3af',
-      lineHeight: 24,
-    },
+    addAnotherText: { fontSize: 15, fontWeight: '600' },
   });

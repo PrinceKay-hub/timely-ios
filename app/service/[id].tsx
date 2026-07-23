@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Alert,
   Linking,
@@ -26,6 +25,7 @@ import { useEffect } from 'react';
 import { PortfolioTabContent } from '@/components/portfolio/PortfolioTab';
 import GalleryWidget from '@/components/Gallerywidget';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
@@ -172,6 +172,17 @@ export default function DetailScreen() {
     });
   };
 
+  const formatDuration = (minutes: number) => {
+    if (minutes >= 60 && minutes % 60 === 0) {
+      return `${minutes / 60} hr`;
+    } else if (minutes > 60) {
+      const hrs = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hrs}h ${mins}m`;
+    }
+    return `${minutes} mins`;
+  };
+
   // ── Loading and error states ───────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -231,7 +242,13 @@ export default function DetailScreen() {
               setGalleryVisible(true);
             }}
           >
-            <Image source={{ uri: item }} style={styles.headerImage} />
+            <Image 
+            source={{ uri: item }} 
+            style={styles.headerImage} 
+            contentFit="cover"
+            transition={200}
+            placeholder={colors.surface || '#f3f4f6'}
+            />
           </TouchableOpacity>
         )}
         keyExtractor={(_, i) => i.toString()}
@@ -290,7 +307,7 @@ export default function DetailScreen() {
         </View>
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={20} color={colors.primary} />
-          <Text style={[styles.locationText, { color: colors.textSecondary }]}>{currentService?.location}</Text>
+          <Text style={[styles.locationText, { color: colors.textSecondary }]}>{currentService?.district}</Text>
         </View>
         <View style={styles.ratingRow}>
           <Ionicons name="star" size={16} color="gold" />
@@ -329,7 +346,7 @@ export default function DetailScreen() {
             </View>
             <View style={styles.serviceInfo}>
               <Text style={[styles.serviceName, { color: colors.text }]}>{s.name}</Text>
-              <Text style={[styles.serviceDuration, { color: colors.textSecondary }]}>{s.duration} mins</Text>
+              <Text style={[styles.serviceDuration, { color: colors.textSecondary }]}>{formatDuration(s.duration)}</Text>
             </View>
             <Text style={[styles.servicePrice, { color: colors.primary }]}>₵{s.price}</Text>
           </View>

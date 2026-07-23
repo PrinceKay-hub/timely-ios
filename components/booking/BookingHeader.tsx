@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookingFormStore } from '@/stores/bookingFormStore';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 export const BookingHeader = () => {
   const router = useRouter();
@@ -35,12 +36,12 @@ export const BookingHeader = () => {
       <View style={[styles.topBar, { backgroundColor: colors.primary }]}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={[styles.iconButton, { backgroundColor: colors.background }]}
+          style={[styles.iconButton, { backgroundColor: '#fff' }]}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: '#fff' }]}>Book Appointment</Text>
-        <View style={[styles.iconButton, { backgroundColor: colors.background }]}>
+        <View style={[{ backgroundColor: colors.primary }]}>
           <Ionicons name="ellipsis-horizontal" size={24} color={colors.primary} />
         </View>
       </View>
@@ -50,6 +51,9 @@ export const BookingHeader = () => {
           <Image
             source={{ uri: imageUrl }}
             style={styles.providerImage}
+            contentFit="cover"
+            transition={200}
+            placeholder={colors.surface || '#f3f4f6'}
             onError={() => setImageError(true)}
           />
         ) : (

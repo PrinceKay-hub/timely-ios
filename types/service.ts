@@ -28,4 +28,6 @@ export interface ServiceEntity {
   number: string;
   region: string;
   district: string;
+  rejectionReason?: string;
+  landmark: string
 }

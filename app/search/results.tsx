@@ -280,6 +280,7 @@ export default function SearchResultsScreen() {
         }}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmpty()}
+        showsVerticalScrollIndicator={false}
       />
 
       {/* Sort Modal */}

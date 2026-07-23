@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -20,6 +22,7 @@ interface AppointmentCardProps {
   onDelete?: () => void;
   onWriteReview?: () => void;
   onBookAgain?: () => void;
+  onCallClient?: () => void;
 }
 
 // Helper functions inside component file
@@ -71,6 +74,20 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const formattedDate = formatDate(booking.appointmentDate);
   const createdAtFormatted = formatShortDate(booking.createdAt);
   const formattedTime = booking.timeSlot?.displayTime || '';
+
+  const handleCall = async () => {
+      if (!booking.phone) {
+        Alert.alert('Error', 'Phone number not available');
+        return;
+      }
+      const url = `tel:${booking.phone}`;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Cannot make a call');
+      }
+    };
 
   return (
     <View style={styles.card}>
@@ -152,6 +169,9 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             ) : (
               <ActionButton title="Reschedule" onPress={onReschedule} color={theme.colors.primary} />
             )}
+            {isProvider && (
+              <ActionButton title="Call Client" onPress={handleCall} color='#00f608' />
+            )}
           </>
         )}
 
@@ -161,6 +181,9 @@ export const AppointmentCard: React.FC<AppointmentCardProps> = ({
             <Divider />
             {!isProvider && (
               <ActionButton title="Directions" onPress={onDirections} color={theme.colors.primary} />
+            )}
+            {isProvider && (
+              <ActionButton title="Call Client" onPress={handleCall} color='#00f608' />
             )}
           </>
         )}

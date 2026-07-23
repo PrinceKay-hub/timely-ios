@@ -158,7 +158,9 @@ export default function RegionsScreen() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.background }]}>
+          <TouchableOpacity onPress={() => router.back()} 
+          style={[styles.backButton, { backgroundColor: '#fff'}]
+          }>
             <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Select Location</Text>
@@ -216,7 +218,7 @@ export default function RegionsScreen() {
                 styles.regionCard,
                 {
                   backgroundColor: colors.card || colors.background,
-                  shadowColor: colors.shadow || '#000',
+                  shadowColor:  '#000',
                 },
                 isSelected && { borderColor: colors.primary, borderWidth: 2 },
               ]}

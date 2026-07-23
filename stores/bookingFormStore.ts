@@ -3,25 +3,27 @@ import { isToday, addMinutes, format } from 'date-fns';
 
 interface Service {
   name: string;
-  price: number;
+  price: string;
   duration: number;
 }
 
 interface BookingFormState {
   providerData: any;
   services: Service[];
-  selectedServiceIndex: number | null;
+  selectedServiceIndices: number[];  // changed from single index
   selectedDate: Date;
   selectedTimeSlot: { display: string; time: Date } | null;
-  totalPrice: number;
+  // totalPrice removed – we compute it from selected services
   isDateWorkingDay: boolean;
   isProviderDataLoaded: boolean;
+  phone: string;
 
   // actions
   setProviderData: (data: any) => void;
-  selectService: (index: number) => void;
+  toggleService: (index: number) => void;   // replaces selectService
   selectDate: (date: Date) => void;
   setTimeSlot: (slot: { display: string; time: Date } | null) => void;
+  setPhone: (phone: string) => void;
   generateTimeSlots: () => { display: string; time: Date }[];
   reset: () => void;
 }
@@ -29,12 +31,12 @@ interface BookingFormState {
 export const useBookingFormStore = create<BookingFormState>((set, get) => ({
   providerData: {},
   services: [],
-  selectedServiceIndex: null,
+  selectedServiceIndices: [],   // empty array initially
   selectedDate: new Date(),
   selectedTimeSlot: null,
-  totalPrice: 0,
   isDateWorkingDay: false,
   isProviderDataLoaded: false,
+  phone: '+233',
 
   setProviderData: (data) => {
     const services = data.services || [];
@@ -55,10 +57,15 @@ export const useBookingFormStore = create<BookingFormState>((set, get) => ({
     });
   },
 
-  selectService: (index) => {
-    const { services } = get();
-    const price = services[index]?.price || 0;
-    set({ selectedServiceIndex: index, totalPrice: price });
+  toggleService: (index) => {
+    const { selectedServiceIndices } = get();
+    if (selectedServiceIndices.includes(index)) {
+      // remove it
+      set({ selectedServiceIndices: selectedServiceIndices.filter(i => i !== index) });
+    } else {
+      // add it
+      set({ selectedServiceIndices: [...selectedServiceIndices, index] });
+    }
   },
 
   selectDate: (date) => {
@@ -71,12 +78,16 @@ export const useBookingFormStore = create<BookingFormState>((set, get) => ({
     set({
       selectedDate: date,
       isDateWorkingDay: isWorkingDay,
-      selectedTimeSlot: null, // clear time slot when date changes
+      selectedTimeSlot: null,
     });
   },
 
   setTimeSlot: (slot) => {
     set({ selectedTimeSlot: slot });
+  },
+
+  setPhone: (phone) => {
+    set({ phone });
   },
 
   generateTimeSlots: () => {
@@ -106,11 +117,11 @@ export const useBookingFormStore = create<BookingFormState>((set, get) => ({
 
   reset: () => {
     set({
-      selectedServiceIndex: null,
+      selectedServiceIndices: [],   // reset to empty
       selectedDate: new Date(),
       selectedTimeSlot: null,
-      totalPrice: 0,
       isDateWorkingDay: false,
+      phone: '',
     });
   },
 }));

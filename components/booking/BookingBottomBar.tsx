@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useBookingFormStore } from '@/stores/bookingFormStore';
 import { useAuthStore } from '@/stores/auth';
@@ -9,27 +8,39 @@ import { BookingEntity } from '@/types/booking';
 import { useTheme } from '@/providers/ThemeProvider';
 
 export const BookingBottomBar = () => {
-  const router = useRouter();
-  const { user, profile } = useAuthStore();
+  const { user, profile, updateUserProfile } = useAuthStore();
   const { createBooking, isLoading } = useBookingStore();
   const { theme } = useTheme();
   const colors = theme.colors;
-
-  // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const {
     providerData,
     services,
-    selectedServiceIndex,
+    selectedServiceIndices, 
     selectedDate,
-    totalPrice,
     isDateWorkingDay,
     selectedTimeSlot,
+    phone,
   } = useBookingFormStore();
 
   const [summaryVisible, setSummaryVisible] = useState(false);
 
+  // Compute selected services and total price
+  const selectedServices = useMemo(() => {
+    return services.filter((_, index) => selectedServiceIndices.includes(index));
+  }, [services, selectedServiceIndices]);
+
+  const totalPrice = useMemo(() => {
+    let sum = 0;
+    selectedServices.forEach((s) => {
+      const price = parseFloat(s.price);
+      if (!isNaN(price)) sum += price;
+    });
+    return sum.toFixed(2);
+  }, [selectedServices]);
+
+  // User info (unchanged)
   const userInfo = {
     ...user,
     id: profile?.id || user?.id,
@@ -42,8 +53,9 @@ export const BookingBottomBar = () => {
   };
 
   const handleViewSummary = () => {
-    if (selectedServiceIndex === null) {
-      Alert.alert('Missing selection', 'Please select a service');
+    // ✅ check if any service selected
+    if (selectedServiceIndices.length === 0) {
+      Alert.alert('Missing selection', 'Please select at least one service');
       return;
     }
     if (!isDateWorkingDay) {
@@ -64,7 +76,12 @@ export const BookingBottomBar = () => {
     }
     setSummaryVisible(false);
 
-    const selectedService = services[selectedServiceIndex!];
+    // Build a combined service description for the single `serviceOption` field
+    // (if your BookingEntity supports an array, you can adapt accordingly)
+    const combinedName = selectedServices.map(s => s.name).join(' + ');
+    const combinedDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
+    const combinedPrice = parseFloat(totalPrice);
+
     const bookingData: BookingEntity = {
       id: '',
       serviceId: providerData.id,
@@ -76,10 +93,11 @@ export const BookingBottomBar = () => {
         displayTime: selectedTimeSlot.display,
         time: selectedTimeSlot.time,
       },
+      // ✅ store combined service info (or you could store an array if your type allows)
       serviceOption: {
-        price: selectedService.price,
-        title: selectedService.name,
-        durationMinutes: selectedService.duration,
+        price: combinedPrice.toString(),
+        title: combinedName,
+        durationMinutes: combinedDuration,
       },
       totalAmount: totalPrice,
       createdAt: new Date(),
@@ -92,10 +110,19 @@ export const BookingBottomBar = () => {
       workingHours: providerData.workingHours,
       services: services,
       reminderSent: false,
+      phone: phone,
     };
 
-    await createBooking(bookingData);
-    router.back();
+    try {
+      await createBooking(bookingData);
+
+      if (phone && !user?.phone) {
+        await updateUserProfile({ phone });
+      }
+    } catch (error) {
+      console.error('Booking or profile update failed:', error);
+      Alert.alert('Error', 'Failed to complete booking. Please try again.');
+    }
   };
 
   return (
@@ -112,6 +139,7 @@ export const BookingBottomBar = () => {
         <TouchableOpacity
           style={[styles.button, { backgroundColor: colors.primary }]}
           onPress={handleViewSummary}
+          disabled={isLoading}
         >
           <Text style={styles.buttonText}>View Summary</Text>
         </TouchableOpacity>
@@ -120,7 +148,7 @@ export const BookingBottomBar = () => {
       <BookingSummaryDialog
         visible={summaryVisible}
         onClose={() => setSummaryVisible(false)}
-        serviceName={selectedServiceIndex !== null ? services[selectedServiceIndex].name : ''}
+        serviceName={selectedServices.map(s => s.name).join(' + ')} // ✅ show combined
         date={selectedDate}
         timeString={selectedTimeSlot?.display ?? ''}
         totalPrice={totalPrice}
@@ -130,7 +158,7 @@ export const BookingBottomBar = () => {
   );
 };
 
-// ─── Style factory ──────────────────────────────────────────────────────────
+// ─── Styles (unchanged) ──────────────────────────────────────────────────────────
 const createStyles = (colors: any) =>
   StyleSheet.create({
     container: {

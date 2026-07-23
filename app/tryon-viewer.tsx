@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
-  View, Image, Text, TouchableOpacity, StyleSheet,
+  View,  Text, TouchableOpacity, StyleSheet,
   Dimensions, StatusBar, FlatList, ActivityIndicator,
   Modal, Share,
 } from "react-native";
@@ -10,6 +10,7 @@ import { getAuth } from "firebase/auth";
 import { app } from "@/firebase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from 'expo-image';
 
 const { width, height } = Dimensions.get("window");
 const db = getFirestore(app);
@@ -111,7 +112,13 @@ export default function TryOnViewerScreen() {
               onPress={() => setSelectedImage(item)}
               activeOpacity={0.85}
             >
-              <Image source={{ uri: item.imageUrl }} style={styles.tileImage} />
+              <Image 
+              source={{ uri: item.imageUrl }} 
+              style={styles.tileImage} 
+              contentFit="cover"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
+              />
               <View style={[styles.tileOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
                 <Text style={styles.tileName} numberOfLines={1}>
                   {item.styleName}
@@ -159,7 +166,9 @@ export default function TryOnViewerScreen() {
             <Image
               source={{ uri: selectedImage.imageUrl }}
               style={styles.fullImage}
-              resizeMode="contain"
+              contentFit="cover"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
             />
           )}
 

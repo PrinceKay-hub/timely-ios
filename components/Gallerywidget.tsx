@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 100;
@@ -85,7 +86,7 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
         bindToBorders
         style={styles.zoomable}
       >
-        <Animated.Image
+        <Image
           source={{ uri: item }}
           style={[
             styles.image,
@@ -93,7 +94,9 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
               transform: [{ rotate: `${rotationAngle}deg` }],
             },
           ]}
-          resizeMode="contain"
+          contentFit="contain"
+          transition={200}
+          placeholder={colors.surface || '#f3f4f6'}
         />
       </ReactNativeZoomableView>
     </View>

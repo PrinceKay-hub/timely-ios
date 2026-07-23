@@ -27,9 +27,12 @@ const AMENITIES = [
   'Wheelchair Access',
   'Refreshment',
   'Air Conditioned',
+  'Free Photoshoot'
 ];
 
 type Step = 'pick' | 'details';
+type PriceType = 'Fixed' | 'Range';
+type DurationUnit = 'Minutes' | 'Hours';
 
 export const ServicesStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
@@ -37,23 +40,31 @@ export const ServicesStep = () => {
     useServiceCatalogStore();
   const { theme } = useTheme();
   const colors = theme.colors;
-
-  // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const services = currentService?.services || [];
   const selectedAmenities = currentService?.amenities || [];
 
+  // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [step, setStep] = useState<Step>('pick');
   const [selectedName, setSelectedName] = useState('');
-  const [price, setPrice] = useState('');
-  const [duration, setDuration] = useState('');
-  const [filteredServices, setFilteredServices] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filteredServices, setFilteredServices] = useState<string[]>([]);
+
+  // Price & Duration state
+  const [priceType, setPriceType] = useState<PriceType>('Fixed');
+  const [price, setPrice] = useState('');          // for Fixed
+  const [priceMin, setPriceMin] = useState('');    // for Range
+  const [priceMax, setPriceMax] = useState('');    // for Range
+  const [duration, setDuration] = useState('');
+  const [durationUnit, setDurationUnit] = useState<DurationUnit>('Minutes');
 
   const searchRef = useRef<TextInput>(null);
   const priceRef = useRef<TextInput>(null);
+  const priceMinRef = useRef<TextInput>(null);
+  const priceMaxRef = useRef<TextInput>(null);
+  const durationRef = useRef<TextInput>(null);
 
   useEffect(() => {
     loadServiceCatalog();
@@ -70,7 +81,11 @@ export const ServicesStep = () => {
     setStep('pick');
     setSelectedName('');
     setPrice('');
+    setPriceMin('');
+    setPriceMax('');
     setDuration('');
+    setPriceType('Fixed');
+    setDurationUnit('Minutes');
     setSearchQuery('');
     setModalVisible(true);
   };
@@ -83,36 +98,63 @@ export const ServicesStep = () => {
   const handleSelectService = (name: string) => {
     setSelectedName(name);
     setStep('details');
-    setTimeout(() => priceRef.current?.focus(), 150);
+    // Focus the first input based on price type
+    setTimeout(() => {
+      if (priceType === 'Fixed') {
+        priceRef.current?.focus();
+      } else {
+        priceMinRef.current?.focus();
+      }
+    }, 150);
   };
 
   const handleAddService = () => {
-    const parsedPrice = parseFloat(price);
-    const parsedDuration = parseInt(duration, 10);
+    // Validate service name
+    if (!selectedName) {
+      Alert.alert('Error', 'Please select a service');
+      return;
+    }
 
-    if (!price.trim() || !duration.trim() || isNaN(parsedPrice) || isNaN(parsedDuration)) {
-      Alert.alert('Incomplete', 'Please enter a valid price and duration');
+    // 1. Price validation
+    let priceString: string;
+    if (priceType === 'Fixed') {
+      const parsed = parseInt(price, 10);
+      if (!price || isNaN(parsed) || parsed <= 0) {
+        Alert.alert('Invalid Price', 'Please enter a valid price greater than 0');
+        return;
+      }
+      priceString = String(parsed);
+    } else {
+      const min = parseInt(priceMin, 10);
+      const max = parseInt(priceMax, 10);
+      if (!priceMin || !priceMax || isNaN(min) || isNaN(max) || min <= 0 || max <= 0 || min > max) {
+        Alert.alert('Invalid Range', 'Please enter a valid price range (min ≤ max)');
+        return;
+      }
+      priceString = `${min} - ${max}`;
+    }
+
+    // 2. Duration validation
+    const durationValue = parseInt(duration, 10);
+    if (!duration || isNaN(durationValue) || durationValue <= 0) {
+      Alert.alert('Invalid Duration', 'Please enter a valid duration greater than 0');
       return;
     }
-    if (parsedPrice <= 0) {
-      Alert.alert('Invalid price', 'Price must be greater than 0');
-      return;
-    }
-    if (parsedDuration <= 0) {
-      Alert.alert('Invalid duration', 'Duration must be greater than 0 minutes');
-      return;
-    }
+    const durationInMinutes = durationUnit === 'Hours' ? durationValue * 60 : durationValue;
+
+    // 3. Duplicate check
     const isDuplicate = services.some(
       (s) => s.name.trim().toLowerCase() === selectedName.trim().toLowerCase()
     );
     if (isDuplicate) {
-      Alert.alert('Already added', `"${selectedName}" is already in your services list`);
+      Alert.alert('Already Added', `"${selectedName}" is already in your services list`);
       return;
     }
 
+    // 4. Add service
     updateServiceField('services', [
       ...services,
-      { name: selectedName, price: parsedPrice, duration: parsedDuration },
+      { name: selectedName, price: priceString, duration: durationInMinutes },
     ]);
     closeModal();
   };
@@ -127,6 +169,18 @@ export const ServicesStep = () => {
     } else {
       updateServiceField('amenities', [...selectedAmenities, amenity]);
     }
+  };
+
+  
+  const formatDuration = (minutes: number) => {
+    if (minutes >= 60 && minutes % 60 === 0) {
+      return `${minutes / 60} hr`;
+    } else if (minutes > 60) {
+      const hrs = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hrs}h ${mins}m`;
+    }
+    return `${minutes} mins`;
   };
 
   return (
@@ -155,7 +209,7 @@ export const ServicesStep = () => {
                 <View style={styles.serviceInfo}>
                   <Text style={[styles.serviceName, { color: colors.text }]}>{svc.name}</Text>
                   <Text style={[styles.serviceDuration, { color: colors.textSecondary }]}>
-                    {svc.duration} min
+                    {formatDuration(svc.duration)}
                   </Text>
                 </View>
                 <Text style={[styles.servicePrice, { color: colors.primary }]}>₵{svc.price}</Text>
@@ -218,7 +272,7 @@ export const ServicesStep = () => {
         </View>
       </View>
 
-      {/* ── Bottom Sheet Modal ── */}
+      {/* ── Modal ── */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
         <TouchableWithoutFeedback onPress={closeModal}>
           <View style={styles.backdrop} />
@@ -229,10 +283,9 @@ export const ServicesStep = () => {
           style={styles.sheetWrapper}
         >
           <View style={[styles.sheet, { backgroundColor: colors.card || colors.background }]}>
-            {/* Handle */}
             <View style={[styles.handle, { backgroundColor: colors.border || '#E5E7EB' }]} />
 
-            {/* ── Step indicator ── */}
+            {/* Step indicator */}
             <View style={styles.stepRow}>
               <View style={styles.stepItem}>
                 <View style={[styles.stepDot, { backgroundColor: colors.primary }]}>
@@ -272,7 +325,7 @@ export const ServicesStep = () => {
               </View>
             </View>
 
-            {/* ── Step 1: Pick service ── */}
+            {/* Step 1: Pick service */}
             {step === 'pick' && (
               <View style={styles.stepContent}>
                 <View style={[styles.searchBar, { backgroundColor: colors.surface }]}>
@@ -325,9 +378,10 @@ export const ServicesStep = () => {
               </View>
             )}
 
-            {/* ── Step 2: Price & duration ── */}
+            {/* Step 2: Price & duration with toggle */}
             {step === 'details' && (
               <View style={styles.stepContent}>
+                {/* Selected service badge */}
                 <View style={[styles.selectedBadge, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
                   <View style={[styles.selectedBadgeIcon, { backgroundColor: colors.background }]}>
                     <Ionicons name="cut" size={16} color={colors.primary} />
@@ -340,35 +394,158 @@ export const ServicesStep = () => {
                   </TouchableOpacity>
                 </View>
 
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Price (₵)</Text>
-                <View style={[styles.inputRow, { backgroundColor: colors.surface }]}>
-                  <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
-                  <TextInput
-                    ref={priceRef}
-                    style={[styles.fieldInput, { color: colors.text }]}
-                    value={price}
-                    onChangeText={setPrice}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={colors.textSecondary}
-                    returnKeyType="next"
-                  />
+                {/* Price type toggle */}
+                <View style={styles.priceTypeRow}>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Price type</Text>
+                  <View style={styles.priceTypeChips}>
+                    <TouchableOpacity
+                      style={[
+                        styles.priceChip,
+                        {
+                          backgroundColor: priceType === 'Fixed' ? colors.primary : colors.surface,
+                          borderColor: priceType === 'Fixed' ? colors.primary : colors.border || '#ccc',
+                        },
+                      ]}
+                      onPress={() => setPriceType('Fixed')}
+                    >
+                      <Text
+                        style={[
+                          styles.priceChipText,
+                          { color: priceType === 'Fixed' ? '#fff' : colors.textSecondary },
+                        ]}
+                      >
+                        Fixed
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.priceChip,
+                        {
+                          backgroundColor: priceType === 'Range' ? colors.primary : colors.surface,
+                          borderColor: priceType === 'Range' ? colors.primary : colors.border || '#ccc',
+                        },
+                      ]}
+                      onPress={() => setPriceType('Range')}
+                    >
+                      <Text
+                        style={[
+                          styles.priceChipText,
+                          { color: priceType === 'Range' ? '#fff' : colors.textSecondary },
+                        ]}
+                      >
+                        Range
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
+                {/* Price inputs */}
+                {priceType === 'Fixed' ? (
+                  <View style={[styles.inputRow, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
+                    <TextInput
+                      ref={priceRef}
+                      style={[styles.fieldInput, { color: colors.text }]}
+                      value={price}
+                      onChangeText={setPrice}
+                      keyboardType="numeric"
+                      placeholder="50"
+                      placeholderTextColor={colors.textSecondary}
+                      returnKeyType="next"
+                      onSubmitEditing={() => durationRef.current?.focus()}
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.rangeRow}>
+                    <View style={[styles.rangeInputWrapper, { backgroundColor: colors.surface }]}>
+                      <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
+                      <TextInput
+                        ref={priceMinRef}
+                        style={[styles.fieldInput, { color: colors.text }]}
+                        value={priceMin}
+                        onChangeText={setPriceMin}
+                        keyboardType="numeric"
+                        placeholder="100"
+                        placeholderTextColor={colors.textSecondary}
+                        returnKeyType="next"
+                        onSubmitEditing={() => priceMaxRef.current?.focus()}
+                      />
+                    </View>
+                    <Text style={[styles.rangeDash, { color: colors.textSecondary }]}>–</Text>
+                    <View style={[styles.rangeInputWrapper, { backgroundColor: colors.surface }]}>
+                      <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
+                      <TextInput
+                        ref={priceMaxRef}
+                        style={[styles.fieldInput, { color: colors.text }]}
+                        value={priceMax}
+                        onChangeText={setPriceMax}
+                        keyboardType="numeric"
+                        placeholder="170"
+                        placeholderTextColor={colors.textSecondary}
+                        returnKeyType="next"
+                        onSubmitEditing={() => durationRef.current?.focus()}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Duration */}
                 <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Duration</Text>
-                <View style={[styles.inputRow, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="time-outline" size={18} color={colors.textSecondary} style={{ marginLeft: 14 }} />
-                  <TextInput
-                    style={[styles.fieldInput, { color: colors.text }]}
-                    value={duration}
-                    onChangeText={setDuration}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={colors.textSecondary}
-                    returnKeyType="done"
-                    onSubmitEditing={handleAddService}
-                  />
-                  <Text style={[styles.inputSuffix, { color: colors.textSecondary }]}>min</Text>
+                <View style={styles.durationRow}>
+                  <View style={[styles.durationInputWrapper, { backgroundColor: colors.surface }]}>
+                    <Ionicons name="time-outline" size={18} color={colors.textSecondary} style={{ marginLeft: 14 }} />
+                    <TextInput
+                      ref={durationRef}
+                      style={[styles.fieldInput, { color: colors.text }]}
+                      value={duration}
+                      onChangeText={setDuration}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.textSecondary}
+                      returnKeyType="done"
+                      onSubmitEditing={handleAddService}
+                    />
+                  </View>
+                  <View style={styles.unitToggle}>
+                    <TouchableOpacity
+                      style={[
+                        styles.unitButton,
+                        {
+                          backgroundColor: durationUnit === 'Minutes' ? colors.primary : colors.surface,
+                          borderColor: durationUnit === 'Minutes' ? colors.primary : colors.border || '#ccc',
+                        },
+                      ]}
+                      onPress={() => setDurationUnit('Minutes')}
+                    >
+                      <Text
+                        style={[
+                          styles.unitButtonText,
+                          { color: durationUnit === 'Minutes' ? '#fff' : colors.textSecondary },
+                        ]}
+                      >
+                        Min
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.unitButton,
+                        {
+                          backgroundColor: durationUnit === 'Hours' ? colors.primary : colors.surface,
+                          borderColor: durationUnit === 'Hours' ? colors.primary : colors.border || '#ccc',
+                        },
+                      ]}
+                      onPress={() => setDurationUnit('Hours')}
+                    >
+                      <Text
+                        style={[
+                          styles.unitButtonText,
+                          { color: durationUnit === 'Hours' ? '#fff' : colors.textSecondary },
+                        ]}
+                      >
+                        Hr
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <TouchableOpacity
@@ -387,7 +564,7 @@ export const ServicesStep = () => {
   );
 };
 
-// ─── Style factory ──────────────────────────────────────────────────────────
+// ─── Styles ────────────────────────────────────────────────────────────────
 const createStyles = (colors: any) =>
   StyleSheet.create({
     container: { flex: 1, paddingHorizontal: 20 },
@@ -452,7 +629,6 @@ const createStyles = (colors: any) =>
       marginBottom: 20,
     },
 
-    // Step indicator
     stepRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -479,7 +655,7 @@ const createStyles = (colors: any) =>
 
     stepContent: { paddingHorizontal: 20 },
 
-    // Step 1
+    // Search
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -501,7 +677,7 @@ const createStyles = (colors: any) =>
     listItemText: { fontSize: 15 },
     emptyListText: { textAlign: 'center', paddingVertical: 24, fontSize: 14 },
 
-    // Step 2
+    // Selected badge
     selectedBadge: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -516,7 +692,27 @@ const createStyles = (colors: any) =>
     },
     selectedBadgeName: { flex: 1, fontWeight: '700', fontSize: 15 },
     changeText: { fontWeight: '600', fontSize: 13 },
-    fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
+
+    // Price type
+    priceTypeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    priceTypeChips: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    priceChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    priceChipText: { fontWeight: '600', fontSize: 13 },
+
+    // Price inputs
     inputRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -529,16 +725,58 @@ const createStyles = (colors: any) =>
       fontWeight: '600',
       paddingHorizontal: 14,
     },
-    inputSuffix: {
-      fontSize: 14,
-      paddingHorizontal: 14,
-    },
     fieldInput: {
       flex: 1,
       fontSize: 17,
       fontWeight: '600',
       paddingVertical: 14,
     },
+    rangeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 20,
+      gap: 10,
+    },
+    rangeInputWrapper: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 14,
+      overflow: 'hidden',
+    },
+    rangeDash: { fontSize: 20, fontWeight: '300' },
+
+    // Duration
+    durationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 20,
+      gap: 10,
+    },
+    durationInputWrapper: {
+      flex: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 14,
+      overflow: 'hidden',
+    },
+    unitToggle: {
+      flex: 1,
+      flexDirection: 'row',
+      borderRadius: 14,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border || '#ccc',
+    },
+    unitButton: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    unitButtonText: { fontWeight: '600', fontSize: 14 },
+
+    // Confirm
     confirmButton: {
       flexDirection: 'row',
       borderRadius: 16,

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { PortfolioImage } from '@/types/portfolio';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 interface Props {
   image: PortfolioImage;
@@ -19,7 +20,13 @@ const PortfolioCard: React.FC<Props> = ({ image, onPress, onDelete }) => {
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={styles.card}>
-      <Image source={{ uri: image.imageUrl }} style={styles.image} />
+      <Image 
+        source={{ uri: image.imageUrl }} 
+        style={styles.image} 
+        contentFit="cover"
+        transition={200}
+        placeholder={colors.surface || '#f3f4f6'}
+      />
       <View style={styles.overlay}>
         {image.caption ? (
           <Text style={styles.caption} numberOfLines={2}>

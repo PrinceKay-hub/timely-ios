@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/providers/ThemeProvider';
 import { AuthProvider } from '@/services/AuthProvider';
 import { useAuthStore } from '@/stores/auth';
-import { initNotifications, onMessageListener } from '@/services/notifications';
+import { initNotifications, onMessageListener, initDeviceInfo } from '@/services/notifications';
 import { initLocation } from '@/services/location';
 import { loadStoredData } from '@/services/storage';
 import { configureGoogleSignIn } from '@/hooks/useGoogleAuth';
@@ -16,18 +16,16 @@ import { DeviceEventEmitter } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/NotificationToast';
 import { playNotificationSound, configureAudioSession } from '@/utils/notificationSound';
-import * as Linking from 'expo-linking'; 
-import { useRouter } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
 configureGoogleSignIn();
 
 export default function RootLayout() {
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
+  const profileLoading = useAuthStore((s) => s.profileLoading);
   const { status, downloadAndRestart } = useAppUpdate();
   const [modalDismissed, setModalDismissed] = useState(false);
-  const router = useRouter();
-
 
   // ── Hide splash ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -41,10 +39,17 @@ export default function RootLayout() {
   }, []);
 
   // ── Notifications ─────────────────────────────────────────────────────────
+  // Gated on `profile` (not just `user`) so this never fires before
+  // fetchProfile has finished creating/loading the users/{uid} doc.
+  // Previously this ran the instant `user` was set, which could race
+  // fetchProfile's getDoc/setDoc and cause saveDeviceInfoToFirestore's
+  // merge:true write to create a bare doc first — leaving fetchProfile
+  // to find "exists: true" and skip populating displayName/email/etc.
   useEffect(() => {
-    if (!user) return;
+    if (!user || profileLoading || !profile) return;
     configureAudioSession();
     initNotifications();
+    initDeviceInfo();
     const unsubscribe = onMessageListener();
 
     const sub = DeviceEventEmitter.addListener(
@@ -66,7 +71,7 @@ export default function RootLayout() {
       unsubscribe?.();
       sub.remove();
     };
-  }, [user]);
+  }, [user, profile, profileLoading]);
 
   return (
     <AuthProvider>
@@ -93,6 +98,7 @@ export default function RootLayout() {
             <Stack.Screen name="terms"                          options={{ headerShown: false }} />
             <Stack.Screen name="manage/registration/chat"       options={{ headerShown: false }} />
             <Stack.Screen name="tryon-viewer"                   options={{ headerShown: false }} />
+            <Stack.Screen name="edit-profile"                   options={{ headerShown: false }} />
           </Stack>
 
           <UpdateModal

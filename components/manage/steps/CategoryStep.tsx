@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { useHomeStore } from '@/stores/home';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 export const CategoryStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
@@ -14,7 +15,6 @@ export const CategoryStep = () => {
   // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const isEditing = !!currentService?.id;
   const selectedCategory = currentService?.category || '';
 
   if (categoriesError) {
@@ -36,15 +36,7 @@ export const CategoryStep = () => {
         Choose the category that best describes your business
       </Text>
 
-      {/* Show a note when editing */}
-      {isEditing && (
-        <View style={[styles.editNote, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-          <Text style={[styles.editNoteText, { color: colors.primary }]}>
-            Category cannot be changed after creation.
-          </Text>
-        </View>
-      )}
+    
 
       <View style={styles.grid}>
         {categories.map((item: any) => {
@@ -55,24 +47,22 @@ export const CategoryStep = () => {
               style={[
                 styles.categoryItem,
                 isSelected && styles.categorySelected,
-                isEditing && styles.disabledItem,
               ]}
               onPress={() => {
-                if (!isEditing) {
-                  updateServiceField('category', item.name);
-                }
+                updateServiceField('category', item.name);
               }}
-              disabled={isEditing}
             >
               <Image
                 source={{ uri: item.icon }}
-                style={[styles.categoryIcon, isEditing && styles.disabledIcon]}
+                style={[styles.categoryIcon,]}
+                contentFit="contain"
+                transition={200}
+                placeholder={colors.surface || '#f3f4f6'}
               />
               <Text
                 style={[
                   styles.categoryName,
                   isSelected && styles.categoryNameSelected,
-                  isEditing && styles.disabledText,
                 ]}
               >
                 {item.name}

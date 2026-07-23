@@ -53,7 +53,7 @@ export const TimeSlots: React.FC<TimeSlotsProps> = ({
           time: new Date(start),
         });
       }
-      start = addMinutes(start, 60);
+      start = addMinutes(start, 30);
     }
     return slots;
   };

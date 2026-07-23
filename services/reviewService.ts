@@ -19,6 +19,7 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: Date;
+  serviceId: string;
 }
 
 export const submitReview = async ({
@@ -27,7 +28,6 @@ export const submitReview = async ({
   userName,
   rating,
   comment,
-  
   serviceId,
 }: {
   providerId: string;
@@ -44,36 +44,15 @@ export const submitReview = async ({
     rating,
     comment,
     createdAt: Timestamp.now(),
+    serviceId
   };
 
   const reviewsRef = collection(db, 'reviews');
   const docRef = await addDoc(reviewsRef, reviewData);
 
-  // After adding review, update provider's average rating
-  await updateProviderRating(providerId, serviceId);
-
   return { id: docRef.id, ...reviewData, createdAt: reviewData.createdAt.toDate() };
 };
 
-const updateProviderRating = async (providerId: string, serviceId: string) => {
-  const reviewsRef = collection(db, 'reviews');
-  const q = query(reviewsRef, where('providerId', '==', providerId));
-  const snapshot = await getDocs(q);
-
-  if (snapshot.empty) return;
-
-  let total = 0;
-  snapshot.forEach(doc => {
-    total += doc.data().rating;
-  });
-  const average = total / snapshot.size;
-
-  const serviceRef = doc(db, 'services', serviceId);
-  await updateDoc(serviceRef, {
-    rating: average,
-    totalReviews: snapshot.size,
-  });
-};
 
 export const fetchReviews = async (providerId: string): Promise<Review[]> => {
   const reviewsRef = collection(db, 'reviews');

@@ -252,6 +252,7 @@ export default function CategoryResultsScreen() {
         renderItem={({ item }) => <SafeResultCard item={item} colors={colors} />}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmpty()}
+        showsVerticalScrollIndicator={false}
       />
 
       {/* Sort Modal */}

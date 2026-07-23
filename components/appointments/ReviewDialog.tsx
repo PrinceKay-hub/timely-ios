@@ -45,6 +45,7 @@ export const ReviewDialog: React.FC<ReviewDialogProps> = ({
       comment,
       serviceId: booking.serviceId,
     });
+    alert('Review submitted successfully!✅');    
     if (!error) {
       onClose();
       setRating(0);

@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
   FlatList,
   Modal,
   Alert,
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 interface Props {
   userId: string;
@@ -123,7 +123,13 @@ export const PhotosStep: React.FC<Props> = ({ userId }) => {
           keyExtractor={(item, index) => index.toString()}
           renderItem={({ item, index }) => (
             <View style={styles.imageContainer}>
-              <Image source={{ uri: item }} style={styles.image} />
+              <Image 
+              source={{ uri: item }} 
+              style={styles.image} 
+              contentFit="cover"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
+              />
               <TouchableOpacity
                 style={[styles.removeButton, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
                 onPress={() => removeImage(index)}

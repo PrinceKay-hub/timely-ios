@@ -4,7 +4,7 @@ export interface TimeSlot {
 }
 
 export interface ServiceOption {
-  price: number;
+  price: string;
   title: string;
   durationMinutes: number;
 }
@@ -18,11 +18,11 @@ export interface BookingEntity {
   appointmentDate: Date;
   timeSlot: TimeSlot;
   serviceOption: ServiceOption;
-  totalAmount: number;
+  totalAmount: string;
   createdAt: Date;
   userName: string;
   participants: string[];
-  status: string; // e.g., 'pending', 'confirmed', 'cancelled'
+  status: string;
   latitude?: number;
   longitude?: number;
   workingDays?: string[];
@@ -31,4 +31,5 @@ export interface BookingEntity {
   reminderSent?: boolean;
   cancelReason?: string;
   updatedAt?: Date;
+  phone: string
 }

@@ -425,6 +425,23 @@ export default function Profile({ user }: ProfileScreenProps) {
     }
   }, []);
 
+  // ── StoreReview helper ─────────────────────────────────────────────────────────
+  const openStoreReview = useCallback(() => {
+  const appId = '6760649428';
+  const packageName = 'com.timely.booking';
+
+    let url = Platform.OS === 'ios'
+      ? `https://apps.apple.com/app/id${appId}?action=write-review`
+      : `https://play.google.com/store/apps/details?id=${packageName}&reviewId=...`;
+
+    // For Android, you can also use `market://details?id=...` for direct Play Store app
+    // but `https://` is more reliable if Play Store app is missing.
+
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Error', 'Could not open store page.');
+    });
+  }, []);
+
   // ── Logout handler ──────────────────────────────────────────────────────────
   const handleLogout = useCallback(async () => {
     setLogoutDialogVisible(false);
@@ -462,6 +479,11 @@ export default function Profile({ user }: ProfileScreenProps) {
       },
     },
     {
+      icon: '🖌️',
+      title: 'Edit Profile',
+      onPress: () =>  router.push('/edit-profile'),
+    },
+    {
       icon: '❤️',
       title: 'My Favorites',
       onPress: () => navigation.navigate('favorites'),
@@ -487,6 +509,11 @@ export default function Profile({ user }: ProfileScreenProps) {
           Alert.alert('Error', 'Could not open WhatsApp.');
         }
       },
+    },
+    {
+      icon: '⭐',
+      title: 'Rate App',
+      onPress: () => openStoreReview(),
     },
     {
       icon: 'ℹ️',

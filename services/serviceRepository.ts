@@ -9,7 +9,9 @@ import {
   getDocs,
   query,
   where,
-  limit,
+  orderBy,
+  setDoc,
+  arrayRemove,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -32,8 +34,8 @@ export const updateService = async (serviceId: string, data: Partial<ServiceEnti
   await updateDoc(docRef, data);
 };
 
-// Delete a service (including images)
-export const deleteService = async (serviceId: string) => {
+// Delete a service (including images), and unlink it from the provider's user doc
+export const deleteService = async (serviceId: string, providerId?: string) => {
   const docRef = doc(db, 'services', serviceId);
   const snap = await getDoc(docRef);
   if (!snap.exists()) return;
@@ -49,15 +51,56 @@ export const deleteService = async (serviceId: string) => {
     }
   }
   await deleteDoc(docRef);
+
+  // Remove this service's id from the provider's user doc so the
+  // `services` array on users/{uid} doesn't accumulate stale ids.
+  const ownerId = providerId || data.providerId;
+  if (ownerId) {
+    try {
+      const userDocRef = doc(db, 'users', ownerId);
+      await updateDoc(userDocRef, { services: arrayRemove(serviceId) });
+    } catch (e) {
+      console.warn('Failed to unlink deleted service from user doc', e);
+    }
+  }
 };
 
-// Get service by provider (assumes at most one)
-export const getServiceByProvider = async (providerId: string): Promise<ServiceEntity | null> => {
-  const q = query(collection(db, 'services'), where('providerId', '==', providerId), limit(1));
+// Get a single service by id (used when deep-linking to one specific listing)
+export const getServiceById = async (serviceId: string): Promise<ServiceEntity | null> => {
+  const docRef = doc(db, 'services', serviceId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as ServiceEntity;
+};
+
+// Get ALL services belonging to a provider — replaces the old
+// getServiceByProvider(...) which used limit(1) and assumed a provider
+// could only ever have a single listing.
+export const getServicesByProvider = async (providerId: string): Promise<ServiceEntity[]> => {
+  const q = query(
+    collection(db, 'services'),
+    where('providerId', '==', providerId),
+    orderBy('createdAt', 'desc')
+  );
   const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
-  const doc = snapshot.docs[0];
-  return { id: doc.id, ...doc.data() } as ServiceEntity;
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as ServiceEntity);
+};
+
+// Marks a user as a provider and links a new service id onto their
+// account. Uses arrayUnion so multiple services accumulate instead of
+// each new service overwriting the previous one's reference — this
+// replaces the old `{ service: service.id }` single-field write.
+// setDoc + merge is used (not updateDoc) so this can't throw if the
+// users/{uid} doc doesn't exist yet for some reason.
+export const linkServiceToProvider = async (providerId: string) => {
+  const userDocRef = doc(db, 'users', providerId);
+  await setDoc(
+    userDocRef,
+    {
+      isProvider: true,
+    },
+    { merge: true }
+  );
 };
 
 // Upload multiple images to Storage

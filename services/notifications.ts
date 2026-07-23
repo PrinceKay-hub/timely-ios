@@ -46,16 +46,27 @@ export const getFCMToken = async (): Promise<string | null> => {
 export const saveFCMTokenToFirestore = async (userId: string, token: string) => {
   try {
     const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, { fcmToken: token,}, { merge: true });
+  } catch (error) {
+    console.log('Error saving token to Firestore:', error);
+  }
+};
+
+
+// Save token to Firestore
+export const saveDeviceInfoToFirestore = async (userId: string, ) => {
+  try {
+    const userRef = doc(db, 'users', userId);
     const deviceData = {
-      model: Device.modelName,        // e.g. "iPhone 14 Pro"
-      manufacturer: Device.manufacturer, // "Apple"
-      brand: Device.brand,            // "Apple"
-      osVersion: Device.osVersion,    // e.g. "17.4"
-      modelId: Device.modelId,        // e.g. "iPhone15,2" — the raw hardware identifier
+      model: Device.modelName,
+      manufacturer: Device.manufacturer, 
+      brand: Device.brand,
+      osVersion: Device.osVersion, 
+      modelId: Device.modelId,
       isPhysicalDevice: Device.isDevice,
       deviceType: 'iOS',
     };
-    await setDoc(userRef, { fcmToken: token, deviceInfo: deviceData }, { merge: true });
+    await setDoc(userRef, { deviceInfo: deviceData }, { merge: true });
   } catch (error) {
     console.log('Error saving token to Firestore:', error);
   }
@@ -93,6 +104,13 @@ export const setBackgroundMessageHandler = () => {
     // Optional: schedule a local notification if needed
   });
 };
+
+export const initDeviceInfo = async () => {
+  const user = auth.currentUser;
+  if (user) {
+      await saveDeviceInfoToFirestore(user.uid,);
+    }
+}
 
 // Initialize
 export const initNotifications = async () => {

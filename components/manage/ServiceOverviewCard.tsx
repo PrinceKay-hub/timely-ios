@@ -1,14 +1,24 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet,  TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { ServiceEntity } from '@/types/service';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 interface Props {
   service: ServiceEntity;
 }
+
+// Explicit mapping so a status that isn't 'pending' doesn't fall through
+// to the same color as 'approved' — 'declined' previously rendered green,
+// which looked identical to an approved/live listing.
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#ff9800',
+  approved: '#4caf50',
+  declined: '#f44336',
+};
 
 export const ServiceOverviewCard: React.FC<Props> = ({ service }) => {
   const router = useRouter();
@@ -33,12 +43,23 @@ export const ServiceOverviewCard: React.FC<Props> = ({ service }) => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            await deleteExistingService(service.id);
-            router.back();
+            // No router.back() here anymore — a provider can have several
+            // services now, so deleting one should just remove this card
+            // from the list (the store already filters it out of `services`
+            // reactively) and leave the provider on the overview screen,
+            // not navigate them away entirely.
+            await deleteExistingService(service.id, service.providerId);
           },
         },
       ]
     );
+  };
+
+  const handlePortfolio = () => {
+    router.push({
+      pathname: '/portfolio/portfolioscreen',
+      params: { id: service.id, serviceName: service.name },
+    });
   };
 
   const firstImage = service.images?.[0];
@@ -46,9 +67,15 @@ export const ServiceOverviewCard: React.FC<Props> = ({ service }) => {
 
   return (
     <View style={styles.card}>
-      <View style={styles.imageContainer}>
+      <View style={styles.imageContainer }>
         {firstImage ? (
-          <Image source={{ uri: firstImage }} style={styles.image} />
+          <Image 
+          source={{ uri: firstImage }} 
+          style={styles.image} 
+          contentFit="cover"
+          transition={200}
+          placeholder={colors.surface || '#f3f4f6'}
+          />
         ) : (
           <View style={[styles.image, styles.placeholderImage]}>
             <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
@@ -77,7 +104,7 @@ export const ServiceOverviewCard: React.FC<Props> = ({ service }) => {
           <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
             {service.name}
           </Text>
-          <View style={[styles.statusBadge, { backgroundColor: service.status === 'pending' ? '#ff9800' : '#4caf50' }]}>
+          <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[service.status] || STATUS_COLORS.pending }]}>
             <Text style={styles.statusText}>{service.status}</Text>
           </View>
         </View>
@@ -103,11 +130,25 @@ export const ServiceOverviewCard: React.FC<Props> = ({ service }) => {
           <View style={styles.serviceChips}>
             {firstServices.map((svc, idx) => (
               <View key={idx} style={[styles.chip, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
-                <Text style={[styles.chipText, { color: colors.primary }]}>{svc.name}</Text>
+                <Text style={[styles.chipText, { color: '#fff' }]}>{svc.name}</Text>
               </View>
             ))}
           </View>
         )}
+        {service.status === "declined" && (
+          <View style={[styles.reasonContainer]}>
+            <Text style={[{color: colors.textSecondary}]}>Reason: </Text>
+            <Text style={[styles.reasonText]}>{service.rejectionReason}</Text>
+          </View>
+        )}
+
+        <View style={[styles.divider, { backgroundColor: colors.border || 'rgba(0,0,0,0.08)' }]} />
+
+        <TouchableOpacity onPress={handlePortfolio} style={styles.portfolioRow}>
+          <Ionicons name="images-outline" size={16} color={colors.primary} />
+          <Text style={[styles.portfolioText, { color: colors.primary }]}>Portfolio</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={styles.portfolioChevron} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -221,5 +262,35 @@ const createStyles = (colors: any) =>
     chipText: {
       fontSize: 12,
       fontWeight: '600',
+    },
+    reasonText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: STATUS_COLORS.declined,
+      
+    },
+    reasonContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingTop: 8,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      marginTop: 14,
+      marginBottom: 10,
+    },
+    portfolioRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    portfolioText: {
+      fontSize: 14,
+      fontWeight: '600',
+      marginLeft: 6,
+      flex: 1,
+    },
+    portfolioChevron: {
+      marginLeft: 'auto',
     },
   });

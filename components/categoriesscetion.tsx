@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useHomeStore } from '@/stores/home';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
 interface CategoriesSectionProps {
   user: Record<string, any>;
@@ -36,7 +36,9 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = () => {
             <Image
               source={{ uri: icon }}
               style={styles.iconImage}
-              resizeMode="contain"
+              contentFit="contain"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
               onError={() => setImgError(true)}
             />
           ) : (

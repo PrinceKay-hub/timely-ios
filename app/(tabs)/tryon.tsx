@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
-  View, Text, Image, TouchableOpacity, ScrollView,
+  View, Text, TouchableOpacity, ScrollView,
   ActivityIndicator, StyleSheet, Alert, Dimensions, Modal, Share,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -17,6 +17,7 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
+import { Image } from 'expo-image';
 
 
 const functions = getFunctions(app);
@@ -109,7 +110,6 @@ export default function VirtualTryOnScreen() {
         quality: 0.85,
         base64: true,
         allowsEditing: true,
-        aspect: [3, 4],
       });
       if (!result.canceled && result.assets[0]) {
         setImageUri(result.assets[0].uri);
@@ -128,7 +128,6 @@ export default function VirtualTryOnScreen() {
         quality: 0.85,
         base64: true,
         allowsEditing: true,
-        aspect: [3, 4],
       });
       if (!result.canceled && result.assets[0]) {
         setImageUri(result.assets[0].uri);
@@ -373,10 +372,16 @@ export default function VirtualTryOnScreen() {
         <Text style={[styles.stepLabel, { color: colors.text }]}>1. Upload your photo</Text>
         <TouchableOpacity
           style={styles.imagePicker}
-          onPress={showImageSourceSheet}  // ✅ changed from pickImage
+          onPress={showImageSourceSheet} 
         >
           {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.previewImage} />
+            <Image 
+            source={{ uri: imageUri }} 
+            style={styles.previewImage}
+            contentFit="cover"
+            transition={200}
+            placeholder={colors.surface || '#f3f4f6'}
+            />
           ) : (
             <View style={styles.placeholderContent}>
               <Text style={styles.placeholderIcon}>📷</Text>
@@ -452,7 +457,13 @@ export default function VirtualTryOnScreen() {
                     setResultUrl(null);
                   }}
                 >
-                  <Image source={{ uri: style.imageUrl }} style={styles.tileImage} />
+                  <Image 
+                  source={{ uri: style.imageUrl }} 
+                  style={styles.tileImage} 
+                  contentFit="cover"
+                  transition={200}
+                  placeholder={colors.surface || '#f3f4f6'}
+                  />
                   {isSelected && (
                     <View style={[styles.tileOverlay, { backgroundColor: 'rgba(108,60,225,0.35)' }]}>
                       <Text style={styles.checkIcon}>✓</Text>
@@ -533,9 +544,11 @@ export default function VirtualTryOnScreen() {
                 <Image
                   source={{ uri: resultUrl }}
                   style={StyleSheet.absoluteFill}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  transition={200}
+                  placeholder={colors.surface || '#f3f4f6'}
                   onLoad={() => console.log("After image loaded:", resultUrl)}
-                  onError={(e) => console.error("After image error:", e.nativeEvent.error, resultUrl)}
+                  onError={(e) => console.error("After image error:", e.error, resultUrl)}
                 />
                 <View style={styles.tapToViewOverlay}>
                   <Text style={styles.tapToViewText}>Tap to view</Text>
@@ -643,7 +656,9 @@ export default function VirtualTryOnScreen() {
           <Image
             source={{ uri: resultUrl ?? "" }}
             style={styles.fullImage}
-            resizeMode="contain"
+            contentFit="cover"
+            transition={200}
+            placeholder={colors.surface || '#f3f4f6'}
           />
 
           {/* Footer */}

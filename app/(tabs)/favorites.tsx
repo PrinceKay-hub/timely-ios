@@ -5,7 +5,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Image,
   StyleSheet,
   Animated,
   Dimensions,
@@ -14,8 +13,9 @@ import {
 } from 'react-native';
 import { useFavoriteStore } from '@/stores/favorite';
 import { useTheme } from '@/providers/ThemeProvider';
+import { Image } from 'expo-image';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+
 const STATUS_H = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 44;
 
 // ─── ServiceImage ─────────────────────────────────────────────────────────────
@@ -47,7 +47,8 @@ const ServiceImage: React.FC<{ uri: string; style: any }> = ({ uri, style }) => 
         <Image
           source={{ uri }}
           style={StyleSheet.absoluteFill}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={200}
           onLoad={() => setLoaded(true)}
           onError={() => { setError(true); setLoaded(true); }}
         />
@@ -181,8 +182,9 @@ const FavoriteCard: React.FC<{ item: Record<string, any>; index: number }> = ({ 
           {/* Location */}
           <View style={styles.locationRow}>
             <Text style={styles.locationPin}>📍</Text>
-            <Text style={styles.locationText} numberOfLines={1}>
+            <Text style={styles.locationText} numberOfLines={2}>
               {item.location ?? 'Unknown location'}
+              {item.landmark ? `, ${item.landmark}` : ''}
             </Text>
           </View>
 

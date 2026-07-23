@@ -96,6 +96,7 @@ export const PortfolioTabContent: React.FC<Props> = ({ serviceId, serviceName })
               style={styles.image}
               contentFit="cover"
               transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
             />
             {/* Gradient overlay */}
             <View style={styles.overlay}>
