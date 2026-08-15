@@ -146,7 +146,6 @@ export const useBookingStore = create<BookingStore>((set, get) => {
       try {
         await confirmBookingService(bookingId);
         
-        
 
         // Send notification to provider
         const providerRef = doc(db, 'users', userId);

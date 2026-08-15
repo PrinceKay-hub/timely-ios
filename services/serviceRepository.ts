@@ -1,4 +1,4 @@
-import { db, storage } from '@/firebase';
+import { db, storage } from "@/firebase";
 import {
   collection,
   doc,
@@ -12,31 +12,62 @@ import {
   orderBy,
   setDoc,
   arrayRemove,
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import * as ImageManipulator from 'expo-image-manipulator';
-import { ServiceEntity } from '@/types/service';
+} from "firebase/firestore";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import * as ImageManipulator from "expo-image-manipulator";
+import { ServiceEntity } from "@/types/service";
+import { getApp } from '@react-native-firebase/app';
+import { getAnalytics, logEvent } from '@react-native-firebase/analytics';
+import { useAuthStore } from "@/stores/auth";
 
 // Create a new service
-export const createService = async (service: ServiceEntity): Promise<string> => {
+export const createService = async (
+  service: ServiceEntity,
+): Promise<string> => {
+  const { profile } = useAuthStore.getState();
   const { id, ...data } = service;
-  const docRef = await addDoc(collection(db, 'services'), {
+  const docRef = await addDoc(collection(db, "services"), {
     ...data,
     createdAt: new Date(),
   });
+
   await updateDoc(docRef, { id: docRef.id });
+
+  const isProvider = profile?.isProvider ?? false;
+
+  if (isProvider === false) {
+        try {
+          const analyticsInstance = getAnalytics(getApp());
+          await logEvent(analyticsInstance, 'provider_signup_complete', {
+            provider_id: service.providerId,
+            service_id: docRef.id,
+            method: 'app',
+          });
+        } catch (error) {
+          console.log('Analytics logEvent FAILED:', error);
+        }
+      }
+
   return docRef.id;
 };
 
 // Update a service
-export const updateService = async (serviceId: string, data: Partial<ServiceEntity>) => {
-  const docRef = doc(db, 'services', serviceId);
+export const updateService = async (
+  serviceId: string,
+  data: Partial<ServiceEntity>,
+) => {
+  const docRef = doc(db, "services", serviceId);
   await updateDoc(docRef, data);
 };
 
 // Delete a service (including images), and unlink it from the provider's user doc
 export const deleteService = async (serviceId: string, providerId?: string) => {
-  const docRef = doc(db, 'services', serviceId);
+  const docRef = doc(db, "services", serviceId);
   const snap = await getDoc(docRef);
   if (!snap.exists()) return;
   const data = snap.data();
@@ -47,7 +78,7 @@ export const deleteService = async (serviceId: string, providerId?: string) => {
       const imageRef = ref(storage, url);
       await deleteObject(imageRef);
     } catch (e) {
-      console.warn('Failed to delete image', e);
+      console.warn("Failed to delete image", e);
     }
   }
   await deleteDoc(docRef);
@@ -57,17 +88,19 @@ export const deleteService = async (serviceId: string, providerId?: string) => {
   const ownerId = providerId || data.providerId;
   if (ownerId) {
     try {
-      const userDocRef = doc(db, 'users', ownerId);
+      const userDocRef = doc(db, "users", ownerId);
       await updateDoc(userDocRef, { services: arrayRemove(serviceId) });
     } catch (e) {
-      console.warn('Failed to unlink deleted service from user doc', e);
+      console.warn("Failed to unlink deleted service from user doc", e);
     }
   }
 };
 
 // Get a single service by id (used when deep-linking to one specific listing)
-export const getServiceById = async (serviceId: string): Promise<ServiceEntity | null> => {
-  const docRef = doc(db, 'services', serviceId);
+export const getServiceById = async (
+  serviceId: string,
+): Promise<ServiceEntity | null> => {
+  const docRef = doc(db, "services", serviceId);
   const snap = await getDoc(docRef);
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as ServiceEntity;
@@ -76,11 +109,13 @@ export const getServiceById = async (serviceId: string): Promise<ServiceEntity |
 // Get ALL services belonging to a provider — replaces the old
 // getServiceByProvider(...) which used limit(1) and assumed a provider
 // could only ever have a single listing.
-export const getServicesByProvider = async (providerId: string): Promise<ServiceEntity[]> => {
+export const getServicesByProvider = async (
+  providerId: string,
+): Promise<ServiceEntity[]> => {
   const q = query(
-    collection(db, 'services'),
-    where('providerId', '==', providerId),
-    orderBy('createdAt', 'desc')
+    collection(db, "services"),
+    where("providerId", "==", providerId),
+    orderBy("createdAt", "desc"),
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as ServiceEntity);
@@ -93,18 +128,22 @@ export const getServicesByProvider = async (providerId: string): Promise<Service
 // setDoc + merge is used (not updateDoc) so this can't throw if the
 // users/{uid} doc doesn't exist yet for some reason.
 export const linkServiceToProvider = async (providerId: string) => {
-  const userDocRef = doc(db, 'users', providerId);
+  const userDocRef = doc(db, "users", providerId);
   await setDoc(
     userDocRef,
     {
       isProvider: true,
+      userType: "provider",
     },
-    { merge: true }
+    { merge: true },
   );
 };
 
 // Upload multiple images to Storage
-export const uploadServiceImages = async (imageFiles: string[], userId: string): Promise<string[]> => {
+export const uploadServiceImages = async (
+  imageFiles: string[],
+  userId: string,
+): Promise<string[]> => {
   const urls: string[] = [];
   for (const file of imageFiles) {
     try {
@@ -117,24 +156,23 @@ export const uploadServiceImages = async (imageFiles: string[], userId: string):
       // 2. HEIC isn't viewable in most browsers, on Android, or on Windows —
       //    these listings need to render for every customer, not just
       //    iPhone users with Safari.
-      const manipulated = await ImageManipulator.manipulateAsync(
-        file,
-        [],
-        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
-      );
+      const manipulated = await ImageManipulator.manipulateAsync(file, [], {
+        compress: 0.85,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
 
       const response = await fetch(manipulated.uri);
       const blob = await response.blob();
       // Must match the storage.rules path: service_images/{providerId}/**
       const filename = `service_images/${userId}/${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
-      await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const url = await getDownloadURL(storageRef);
       urls.push(url);
     } catch (e: any) {
       // Log the real cause instead of letting it surface only as
       // a generic "storage/unknown" with no context.
-      console.error('Image upload failed:', {
+      console.error("Image upload failed:", {
         file,
         code: e?.code,
         message: e?.message,

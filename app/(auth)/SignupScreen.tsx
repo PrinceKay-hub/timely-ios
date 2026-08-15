@@ -168,16 +168,6 @@ export default function SignUpScreen({ onToggle }: Props) {
     }
   };
 
-  // ─── Loading ──────────────────────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <View style={[styles.loading, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Creating your account…</Text>
-      </View>
-    );
-  }
-
   const isDark = theme.dark;
 
   return (
@@ -268,9 +258,25 @@ export default function SignUpScreen({ onToggle }: Props) {
           </TouchableOpacity>
 
           {/* Sign Up button */}
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={handleSignUp} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>Create Account</Text>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={handleSignUp}
+            activeOpacity={0.85}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <View style={styles.loading}>
+                <ActivityIndicator size="small" color={colors.text} />
+
+                <Text style={[styles.loadingText]}>
+                  Creating your account…
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.primaryBtnText}>Create Account</Text>
+            )}
           </TouchableOpacity>
+
         </View>
 
         {/* OR divider */}
@@ -313,8 +319,12 @@ const createStyles = (colors: any) =>
   StyleSheet.create({
     root: { flex: 1 },
     scroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 48, paddingBottom: 32 },
-    loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    loadingText: { fontSize: 14, marginTop: 8 },
+    loading: {
+      flexDirection: "row",
+      alignContent: 'center',
+      justifyContent: 'center'
+    },
+    loadingText: { fontSize: 14, marginLeft: 8, color: colors.text },
     logoWrap: {
       width: 80,
       height: 80,
@@ -379,16 +389,18 @@ const createStyles = (colors: any) =>
     termsText: { flex: 1, fontSize: 13, lineHeight: 20 },
     termsLink: { fontWeight: '600' },
     primaryBtn: {
+      backgroundColor: colors.primary,
       borderRadius: 12,
       paddingVertical: 15,
       alignItems: 'center',
+      marginTop: 4,
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 5,
+      shadowRadius: 8,
+      elevation: 4,
     },
-    primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+    primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3, flexDirection: "row" },
     divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 28, gap: 14 },
     dividerLine: { flex: 1, height: 1 },
     dividerText: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },

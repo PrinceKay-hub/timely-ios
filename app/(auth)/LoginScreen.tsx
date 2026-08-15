@@ -280,15 +280,7 @@ export default function LoginScreen({ onToggle }: LoginScreenProps) {
     </View>
   );
 
-  if (isLoading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Signing in…</Text>
-      </View>
-    );
-  }
-
+ 
   const isDark = theme.dark;
 
   return (
@@ -360,8 +352,24 @@ export default function LoginScreen({ onToggle }: LoginScreenProps) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleLogin} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>Sign In</Text>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={handleLogin}
+            activeOpacity={0.85}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <View style= {styles.loading}>
+                <ActivityIndicator size="small" color={colors.text} />
+                
+                <Text style={[styles.loadingText]}>
+                  Signing in…
+                </Text>
+              </View>
+              
+            ) : (
+              <Text style={styles.primaryBtnText}>Sign In</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -416,7 +424,7 @@ const createStyles = (colors: any) =>
     scroll: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 48, paddingBottom: 32 },
     dismissArea: { height: 0 },
     loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    loadingText: { fontSize: 14, marginTop: 8 },
+    loadingText: { fontSize: 14, marginLeft: 8, color: colors.text },
     logoWrap: {
       width: 80,
       height: 80,
@@ -485,7 +493,7 @@ const createStyles = (colors: any) =>
       shadowRadius: 8,
       elevation: 4,
     },
-    primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+    primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3, flexDirection: "row" },
     divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 28, gap: 14 },
     dividerLine: { flex: 1, height: 1, backgroundColor: colors.border || '#e0e0e0' },
     dividerText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600', letterSpacing: 1 },
@@ -584,4 +592,9 @@ const createStyles = (colors: any) =>
     disabledBtn: { opacity: 0.5, shadowOpacity: 0, elevation: 0 },
     successBanner: { backgroundColor: `${colors.primary}14`, borderWidth: 1, borderColor: `${colors.primary}33`, borderRadius: 12, padding: 14 },
     successBannerText: { color: colors.primary, fontSize: 14, fontWeight: '500' },
+    loading: {
+      flexDirection: "row",
+      alignContent: 'center',
+      justifyContent: 'center'
+    }
   });

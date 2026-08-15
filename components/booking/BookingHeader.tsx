@@ -66,7 +66,8 @@ export const BookingHeader = () => {
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
             <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
-              {providerData.location || ''}
+              {providerData.district || ''}
+              {providerData.landmark && `, ${providerData.landmark}`}
             </Text>
           </View>
           <View style={styles.ratingRow}>

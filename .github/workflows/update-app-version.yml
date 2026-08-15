@@ -1,0 +1,43 @@
+name: Update app version manifest
+
+# Fires whenever you push a tag like v3.7.9 (adjust to match your tagging scheme).
+# Also supports manual runs from the Actions tab for testing, without needing a real tag.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+jobs:
+  update-manifest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main # always commit the manifest update onto main, even if the tag is elsewhere
+
+      - name: Extract version from app.json
+        id: version
+        run: |
+          VERSION=$(jq -r '.expo.version' app.json)
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "Error: could not extract expo.version from app.json" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Extracted version: $VERSION"
+
+      - name: Update app-version.json
+        run: |
+          chmod +x scripts/update_app_version.sh
+          ./scripts/update_app_version.sh "${{ steps.version.outputs.version }}"
+
+      - name: Commit and push manifest update
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: bump app-version.json to ${{ steps.version.outputs.version }}"
+          file_pattern: app-version.json
+          branch: main

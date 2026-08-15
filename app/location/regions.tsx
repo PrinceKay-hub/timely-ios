@@ -143,7 +143,7 @@ export default function RegionsScreen() {
   if (locations.size === 0) {
     return (
       <EmptyScreen
-        icon="search-off"
+        icon="search"
         title="No Regions Found"
         message="Try again later"
       />
@@ -243,7 +243,7 @@ export default function RegionsScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyList}>
-            <Ionicons name="search-off" size={60} color={colors.textSecondary} />
+            <Ionicons name="search" size={60} color={colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No regions found</Text>
             <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
               Try a different search term
@@ -356,7 +356,7 @@ export default function RegionsScreen() {
               }}
               ListEmptyComponent={
                 <View style={styles.emptyList}>
-                  <Ionicons name="location-off" size={60} color={colors.textSecondary} />
+                  <Ionicons name="location" size={60} color={colors.textSecondary} />
                   <Text style={[styles.emptyTitle, { color: colors.text }]}>No districts found</Text>
                   <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
                     Try a different search term

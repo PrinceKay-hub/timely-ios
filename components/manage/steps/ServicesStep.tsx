@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
-import { useServiceCatalogStore } from '@/stores/serviceCatalog';
+import { useServiceCatalogStore } from '@/stores/serviceCatalog'; // adjust path if needed
 import { useTheme } from '@/providers/ThemeProvider';
 
 const AMENITIES = [
@@ -27,7 +27,7 @@ const AMENITIES = [
   'Wheelchair Access',
   'Refreshment',
   'Air Conditioned',
-  'Free Photoshoot'
+  'Free Photoshoot',
 ];
 
 type Step = 'pick' | 'details';
@@ -36,8 +36,13 @@ type DurationUnit = 'Minutes' | 'Hours';
 
 export const ServicesStep = () => {
   const { currentService, updateServiceField } = useServiceRegistrationStore();
-  const { serviceCatalog, serviceCatalogError, isLoadingServiceCatalog, loadServiceCatalog } =
-    useServiceCatalogStore();
+  const {
+    serviceCatalog,
+    serviceCatalogError,
+    isLoadingServiceCatalog,
+    startListeningServiceCatalog,
+    stopListeningServiceCatalog,
+  } = useServiceCatalogStore();
   const { theme } = useTheme();
   const colors = theme.colors;
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -54,9 +59,9 @@ export const ServicesStep = () => {
 
   // Price & Duration state
   const [priceType, setPriceType] = useState<PriceType>('Fixed');
-  const [price, setPrice] = useState('');          // for Fixed
-  const [priceMin, setPriceMin] = useState('');    // for Range
-  const [priceMax, setPriceMax] = useState('');    // for Range
+  const [price, setPrice] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
   const [duration, setDuration] = useState('');
   const [durationUnit, setDurationUnit] = useState<DurationUnit>('Minutes');
 
@@ -66,10 +71,15 @@ export const ServicesStep = () => {
   const priceMaxRef = useRef<TextInput>(null);
   const durationRef = useRef<TextInput>(null);
 
+  // ─── Start real‑time listener on mount ──────────────────────────────
   useEffect(() => {
-    loadServiceCatalog();
-  }, []);
+    startListeningServiceCatalog();
+    return () => {
+      stopListeningServiceCatalog();
+    };
+  }, [startListeningServiceCatalog, stopListeningServiceCatalog]);
 
+  // ─── Filter services based on search ─────────────────────────────────
   useEffect(() => {
     const q = searchQuery.toLowerCase().trim();
     setFilteredServices(
@@ -98,7 +108,6 @@ export const ServicesStep = () => {
   const handleSelectService = (name: string) => {
     setSelectedName(name);
     setStep('details');
-    // Focus the first input based on price type
     setTimeout(() => {
       if (priceType === 'Fixed') {
         priceRef.current?.focus();
@@ -109,13 +118,11 @@ export const ServicesStep = () => {
   };
 
   const handleAddService = () => {
-    // Validate service name
     if (!selectedName) {
       Alert.alert('Error', 'Please select a service');
       return;
     }
 
-    // 1. Price validation
     let priceString: string;
     if (priceType === 'Fixed') {
       const parsed = parseInt(price, 10);
@@ -134,7 +141,6 @@ export const ServicesStep = () => {
       priceString = `${min} - ${max}`;
     }
 
-    // 2. Duration validation
     const durationValue = parseInt(duration, 10);
     if (!duration || isNaN(durationValue) || durationValue <= 0) {
       Alert.alert('Invalid Duration', 'Please enter a valid duration greater than 0');
@@ -142,7 +148,6 @@ export const ServicesStep = () => {
     }
     const durationInMinutes = durationUnit === 'Hours' ? durationValue * 60 : durationValue;
 
-    // 3. Duplicate check
     const isDuplicate = services.some(
       (s) => s.name.trim().toLowerCase() === selectedName.trim().toLowerCase()
     );
@@ -151,7 +156,6 @@ export const ServicesStep = () => {
       return;
     }
 
-    // 4. Add service
     updateServiceField('services', [
       ...services,
       { name: selectedName, price: priceString, duration: durationInMinutes },
@@ -171,7 +175,6 @@ export const ServicesStep = () => {
     }
   };
 
-  
   const formatDuration = (minutes: number) => {
     if (minutes >= 60 && minutes % 60 === 0) {
       return `${minutes / 60} hr`;
@@ -202,22 +205,43 @@ export const ServicesStep = () => {
         ) : (
           <View style={styles.servicesList}>
             {services.map((svc, index) => (
-              <View key={index} style={[styles.serviceItem, { borderBottomColor: colors.border || '#f5f5f5' }]}>
-                <View style={[styles.serviceIcon, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
+              <View
+                key={index}
+                style={[
+                  styles.serviceItem,
+                  { borderBottomColor: colors.border || '#f5f5f5' },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.serviceIcon,
+                    { backgroundColor: colors.primaryLight || `${colors.primary}18` },
+                  ]}
+                >
                   <Ionicons name="cut" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.serviceInfo}>
-                  <Text style={[styles.serviceName, { color: colors.text }]}>{svc.name}</Text>
-                  <Text style={[styles.serviceDuration, { color: colors.textSecondary }]}>
+                  <Text style={[styles.serviceName, { color: colors.text }]}>
+                    {svc.name}
+                  </Text>
+                  <Text
+                    style={[styles.serviceDuration, { color: colors.textSecondary }]}
+                  >
                     {formatDuration(svc.duration)}
                   </Text>
                 </View>
-                <Text style={[styles.servicePrice, { color: colors.primary }]}>₵{svc.price}</Text>
+                <Text style={[styles.servicePrice, { color: colors.primary }]}>
+                  ₵{svc.price}
+                </Text>
                 <TouchableOpacity
                   onPress={() => handleDeleteService(index)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="trash-outline" size={18} color={colors.error || '#F87171'} />
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color={colors.error || '#F87171'}
+                  />
                 </TouchableOpacity>
               </View>
             ))}
@@ -230,12 +254,14 @@ export const ServicesStep = () => {
             {
               borderColor: colors.primary,
               backgroundColor: colors.surface,
-            }
+            },
           ]}
           onPress={openModal}
         >
           <Ionicons name="add" size={20} color={colors.primary} />
-          <Text style={[styles.addButtonText, { color: colors.primary }]}>Add Service</Text>
+          <Text style={[styles.addButtonText, { color: colors.primary }]}>
+            Add Service
+          </Text>
         </TouchableOpacity>
 
         <View style={[styles.divider, { backgroundColor: colors.border || '#f0f0f0' }]} />
@@ -273,7 +299,12 @@ export const ServicesStep = () => {
       </View>
 
       {/* ── Modal ── */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
         <TouchableWithoutFeedback onPress={closeModal}>
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
@@ -282,8 +313,12 @@ export const ServicesStep = () => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.sheetWrapper}
         >
-          <View style={[styles.sheet, { backgroundColor: colors.card || colors.background }]}>
-            <View style={[styles.handle, { backgroundColor: colors.border || '#E5E7EB' }]} />
+          <View
+            style={[styles.sheet, { backgroundColor: colors.card || colors.background }]}
+          >
+            <View
+              style={[styles.handle, { backgroundColor: colors.border || '#E5E7EB' }]}
+            />
 
             {/* Step indicator */}
             <View style={styles.stepRow}>
@@ -291,35 +326,55 @@ export const ServicesStep = () => {
                 <View style={[styles.stepDot, { backgroundColor: colors.primary }]}>
                   <Text style={styles.stepDotText}>1</Text>
                 </View>
-                <Text style={[
-                  styles.stepLabel,
-                  { color: step === 'pick' ? colors.primary : colors.textSecondary },
-                  step === 'pick' && styles.stepLabelActive
-                ]}>
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    {
+                      color: step === 'pick' ? colors.primary : colors.textSecondary,
+                    },
+                    step === 'pick' && styles.stepLabelActive,
+                  ]}
+                >
                   Choose Service
                 </Text>
               </View>
-              <View style={[
-                styles.stepLine,
-                { backgroundColor: step === 'details' ? colors.primary : colors.border || '#E5E7EB' }
-              ]} />
+              <View
+                style={[
+                  styles.stepLine,
+                  {
+                    backgroundColor:
+                      step === 'details' ? colors.primary : colors.border || '#E5E7EB',
+                  },
+                ]}
+              />
               <View style={styles.stepItem}>
-                <View style={[
-                  styles.stepDot,
-                  { backgroundColor: step === 'details' ? colors.primary : colors.border || '#E5E7EB' }
-                ]}>
-                  <Text style={[
-                    styles.stepDotText,
-                    step !== 'details' && { color: colors.textSecondary || '#999' }
-                  ]}>
+                <View
+                  style={[
+                    styles.stepDot,
+                    {
+                      backgroundColor:
+                        step === 'details' ? colors.primary : colors.border || '#E5E7EB',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.stepDotText,
+                      step !== 'details' && { color: colors.textSecondary || '#999' },
+                    ]}
+                  >
                     2
                   </Text>
                 </View>
-                <Text style={[
-                  styles.stepLabel,
-                  { color: step === 'details' ? colors.primary : colors.textSecondary },
-                  step === 'details' && styles.stepLabelActive
-                ]}>
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    {
+                      color: step === 'details' ? colors.primary : colors.textSecondary,
+                    },
+                    step === 'details' && styles.stepLabelActive,
+                  ]}
+                >
                   Set Price & Time
                 </Text>
               </View>
@@ -328,8 +383,15 @@ export const ServicesStep = () => {
             {/* Step 1: Pick service */}
             {step === 'pick' && (
               <View style={styles.stepContent}>
-                <View style={[styles.searchBar, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="search" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                <View
+                  style={[styles.searchBar, { backgroundColor: colors.surface }]}
+                >
+                  <Ionicons
+                    name="search"
+                    size={18}
+                    color={colors.textSecondary}
+                    style={{ marginRight: 8 }}
+                  />
                   <TextInput
                     ref={searchRef}
                     style={[styles.searchInput, { color: colors.text }]}
@@ -341,15 +403,25 @@ export const ServicesStep = () => {
                   />
                   {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
-                      <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                      <Ionicons
+                        name="close-circle"
+                        size={18}
+                        color={colors.textSecondary}
+                      />
                     </TouchableOpacity>
                   )}
                 </View>
 
                 {isLoadingServiceCatalog ? (
-                  <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 32 }} />
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.primary}
+                    style={{ marginVertical: 32 }}
+                  />
                 ) : serviceCatalogError ? (
-                  <Text style={[styles.emptyListText, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[styles.emptyListText, { color: colors.textSecondary }]}
+                  >
                     Couldn't load services. Pull to retry.
                   </Text>
                 ) : (
@@ -360,16 +432,29 @@ export const ServicesStep = () => {
                     style={styles.list}
                     renderItem={({ item }) => (
                       <TouchableOpacity
-                        style={[styles.listItem, { borderBottomColor: colors.border || '#F5F5F7' }]}
+                        style={[
+                          styles.listItem,
+                          {
+                            borderBottomColor: colors.border || '#F5F5F7',
+                          },
+                        ]}
                         onPress={() => handleSelectService(item)}
                         activeOpacity={0.7}
                       >
-                        <Text style={[styles.listItemText, { color: colors.text }]}>{item}</Text>
-                        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                        <Text style={[styles.listItemText, { color: colors.text }]}>
+                          {item}
+                        </Text>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={colors.textSecondary}
+                        />
                       </TouchableOpacity>
                     )}
                     ListEmptyComponent={
-                      <Text style={[styles.emptyListText, { color: colors.textSecondary }]}>
+                      <Text
+                        style={[styles.emptyListText, { color: colors.textSecondary }]}
+                      >
                         No services found
                       </Text>
                     }
@@ -382,28 +467,50 @@ export const ServicesStep = () => {
             {step === 'details' && (
               <View style={styles.stepContent}>
                 {/* Selected service badge */}
-                <View style={[styles.selectedBadge, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
-                  <View style={[styles.selectedBadgeIcon, { backgroundColor: colors.background }]}>
+                <View
+                  style={[
+                    styles.selectedBadge,
+                    {
+                      backgroundColor:
+                        colors.primaryLight || `${colors.primary}18`,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.selectedBadgeIcon,
+                      { backgroundColor: colors.background },
+                    ]}
+                  >
                     <Ionicons name="cut" size={16} color={colors.primary} />
                   </View>
-                  <Text style={[styles.selectedBadgeName, { color: colors.text }]} numberOfLines={1}>
+                  <Text
+                    style={[styles.selectedBadgeName, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
                     {selectedName}
                   </Text>
                   <TouchableOpacity onPress={() => setStep('pick')}>
-                    <Text style={[styles.changeText, { color: colors.primary }]}>Change</Text>
+                    <Text style={[styles.changeText, { color: colors.primary }]}>
+                      Change
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Price type toggle */}
                 <View style={styles.priceTypeRow}>
-                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Price type</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                    Price type
+                  </Text>
                   <View style={styles.priceTypeChips}>
                     <TouchableOpacity
                       style={[
                         styles.priceChip,
                         {
-                          backgroundColor: priceType === 'Fixed' ? colors.primary : colors.surface,
-                          borderColor: priceType === 'Fixed' ? colors.primary : colors.border || '#ccc',
+                          backgroundColor:
+                            priceType === 'Fixed' ? colors.primary : colors.surface,
+                          borderColor:
+                            priceType === 'Fixed' ? colors.primary : colors.border || '#ccc',
                         },
                       ]}
                       onPress={() => setPriceType('Fixed')}
@@ -411,7 +518,9 @@ export const ServicesStep = () => {
                       <Text
                         style={[
                           styles.priceChipText,
-                          { color: priceType === 'Fixed' ? '#fff' : colors.textSecondary },
+                          {
+                            color: priceType === 'Fixed' ? '#fff' : colors.textSecondary,
+                          },
                         ]}
                       >
                         Fixed
@@ -421,8 +530,10 @@ export const ServicesStep = () => {
                       style={[
                         styles.priceChip,
                         {
-                          backgroundColor: priceType === 'Range' ? colors.primary : colors.surface,
-                          borderColor: priceType === 'Range' ? colors.primary : colors.border || '#ccc',
+                          backgroundColor:
+                            priceType === 'Range' ? colors.primary : colors.surface,
+                          borderColor:
+                            priceType === 'Range' ? colors.primary : colors.border || '#ccc',
                         },
                       ]}
                       onPress={() => setPriceType('Range')}
@@ -430,7 +541,9 @@ export const ServicesStep = () => {
                       <Text
                         style={[
                           styles.priceChipText,
-                          { color: priceType === 'Range' ? '#fff' : colors.textSecondary },
+                          {
+                            color: priceType === 'Range' ? '#fff' : colors.textSecondary,
+                          },
                         ]}
                       >
                         Range
@@ -441,8 +554,12 @@ export const ServicesStep = () => {
 
                 {/* Price inputs */}
                 {priceType === 'Fixed' ? (
-                  <View style={[styles.inputRow, { backgroundColor: colors.surface }]}>
-                    <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
+                  <View
+                    style={[styles.inputRow, { backgroundColor: colors.surface }]}
+                  >
+                    <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>
+                      ₵
+                    </Text>
                     <TextInput
                       ref={priceRef}
                       style={[styles.fieldInput, { color: colors.text }]}
@@ -457,8 +574,17 @@ export const ServicesStep = () => {
                   </View>
                 ) : (
                   <View style={styles.rangeRow}>
-                    <View style={[styles.rangeInputWrapper, { backgroundColor: colors.surface }]}>
-                      <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
+                    <View
+                      style={[
+                        styles.rangeInputWrapper,
+                        { backgroundColor: colors.surface },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.inputPrefix, { color: colors.textSecondary }]}
+                      >
+                        ₵
+                      </Text>
                       <TextInput
                         ref={priceMinRef}
                         style={[styles.fieldInput, { color: colors.text }]}
@@ -471,9 +597,22 @@ export const ServicesStep = () => {
                         onSubmitEditing={() => priceMaxRef.current?.focus()}
                       />
                     </View>
-                    <Text style={[styles.rangeDash, { color: colors.textSecondary }]}>–</Text>
-                    <View style={[styles.rangeInputWrapper, { backgroundColor: colors.surface }]}>
-                      <Text style={[styles.inputPrefix, { color: colors.textSecondary }]}>₵</Text>
+                    <Text
+                      style={[styles.rangeDash, { color: colors.textSecondary }]}
+                    >
+                      –
+                    </Text>
+                    <View
+                      style={[
+                        styles.rangeInputWrapper,
+                        { backgroundColor: colors.surface },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.inputPrefix, { color: colors.textSecondary }]}
+                      >
+                        ₵
+                      </Text>
                       <TextInput
                         ref={priceMaxRef}
                         style={[styles.fieldInput, { color: colors.text }]}
@@ -490,10 +629,22 @@ export const ServicesStep = () => {
                 )}
 
                 {/* Duration */}
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Duration</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                  Duration
+                </Text>
                 <View style={styles.durationRow}>
-                  <View style={[styles.durationInputWrapper, { backgroundColor: colors.surface }]}>
-                    <Ionicons name="time-outline" size={18} color={colors.textSecondary} style={{ marginLeft: 14 }} />
+                  <View
+                    style={[
+                      styles.durationInputWrapper,
+                      { backgroundColor: colors.surface },
+                    ]}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={18}
+                      color={colors.textSecondary}
+                      style={{ marginLeft: 14 }}
+                    />
                     <TextInput
                       ref={durationRef}
                       style={[styles.fieldInput, { color: colors.text }]}
@@ -511,8 +662,12 @@ export const ServicesStep = () => {
                       style={[
                         styles.unitButton,
                         {
-                          backgroundColor: durationUnit === 'Minutes' ? colors.primary : colors.surface,
-                          borderColor: durationUnit === 'Minutes' ? colors.primary : colors.border || '#ccc',
+                          backgroundColor:
+                            durationUnit === 'Minutes' ? colors.primary : colors.surface,
+                          borderColor:
+                            durationUnit === 'Minutes'
+                              ? colors.primary
+                              : colors.border || '#ccc',
                         },
                       ]}
                       onPress={() => setDurationUnit('Minutes')}
@@ -520,7 +675,10 @@ export const ServicesStep = () => {
                       <Text
                         style={[
                           styles.unitButtonText,
-                          { color: durationUnit === 'Minutes' ? '#fff' : colors.textSecondary },
+                          {
+                            color:
+                              durationUnit === 'Minutes' ? '#fff' : colors.textSecondary,
+                          },
                         ]}
                       >
                         Min
@@ -530,8 +688,12 @@ export const ServicesStep = () => {
                       style={[
                         styles.unitButton,
                         {
-                          backgroundColor: durationUnit === 'Hours' ? colors.primary : colors.surface,
-                          borderColor: durationUnit === 'Hours' ? colors.primary : colors.border || '#ccc',
+                          backgroundColor:
+                            durationUnit === 'Hours' ? colors.primary : colors.surface,
+                          borderColor:
+                            durationUnit === 'Hours'
+                              ? colors.primary
+                              : colors.border || '#ccc',
                         },
                       ]}
                       onPress={() => setDurationUnit('Hours')}
@@ -539,7 +701,10 @@ export const ServicesStep = () => {
                       <Text
                         style={[
                           styles.unitButtonText,
-                          { color: durationUnit === 'Hours' ? '#fff' : colors.textSecondary },
+                          {
+                            color:
+                              durationUnit === 'Hours' ? '#fff' : colors.textSecondary,
+                          },
                         ]}
                       >
                         Hr
@@ -552,7 +717,12 @@ export const ServicesStep = () => {
                   style={[styles.confirmButton, { backgroundColor: colors.primary }]}
                   onPress={handleAddService}
                 >
-                  <Ionicons name="add-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Ionicons
+                    name="add-circle"
+                    size={20}
+                    color="#fff"
+                    style={{ marginRight: 8 }}
+                  />
                   <Text style={styles.confirmButtonText}>Add Service</Text>
                 </TouchableOpacity>
               </View>

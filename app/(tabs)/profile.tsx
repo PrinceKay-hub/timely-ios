@@ -1,27 +1,27 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
-  Linking,
-  Platform,
-  StatusBar,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { auth, db } from '@/firebase';
-import { sendEmailVerification, reload } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
-import { useRouter } from 'expo-router';
-import { useAuthStore } from '@/stores/auth';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/firebase';
+import { auth, db, functions, rtdb } from '@/firebase';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useAuthStore } from '@/stores/auth';
 import { ThemeMode } from '@/stores/useThemeStore';
+import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import { reload, sendEmailVerification } from 'firebase/auth';
+import { set as dbSet, ref, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
+import { doc, updateDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ProfileScreenProps {
@@ -49,8 +49,8 @@ const ThemePicker: React.FC<{ colors: any }> = ({ colors }) => {
   // Inline styles using the provided colors
   const pickerStyles = useMemo(() => ({
     row: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
       gap: 8,
     },
     option: {
@@ -70,12 +70,12 @@ const ThemePicker: React.FC<{ colors: any }> = ({ colors }) => {
     icon: { fontSize: 20 },
     label: {
       fontSize: 12,
-      fontWeight: '500',
+      fontWeight: '500' as const,
       color: colors.textSecondary || '#6B7280',
     },
     labelSelected: {
       color: colors.primary,
-      fontWeight: '600',
+      fontWeight: '600' as const,
     },
   }), [colors]);
 
@@ -108,7 +108,7 @@ const LogoutDialog: React.FC<{
   onConfirm: () => void;
   colors: any;
 }> = ({ visible, onCancel, onConfirm, colors }) => {
-  const dialogStyles = useMemo(() => ({
+  const dialogStyles = useMemo(() => StyleSheet.create({
     dialogOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
@@ -204,7 +204,7 @@ const DeleteAccountDialog: React.FC<{
   onConfirm: () => void;
   colors: any;
 }> = ({ visible, onCancel, onConfirm, colors }) => {
-  const dialogStyles = useMemo(() => ({
+  const dialogStyles = useMemo(() => StyleSheet.create({
     dialogOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
@@ -444,10 +444,26 @@ export default function Profile({ user }: ProfileScreenProps) {
 
   // ── Logout handler ──────────────────────────────────────────────────────────
   const handleLogout = useCallback(async () => {
-    setLogoutDialogVisible(false);
-    await logout();
-    router.replace('/AuthWrapper');
-  }, [logout, router]);
+  setLogoutDialogVisible(false);
+
+  // 1. Mark offline while the user is still authenticated
+  const user = auth.currentUser;
+  if (user) {
+    const statusRef = ref(rtdb, `status/${user.uid}`);
+    try {
+      await dbSet(statusRef, { state: 'offline', lastSeen: rtdbServerTimestamp() });
+    } catch (err) {
+      // This should rarely fail since the token is valid; log just in case
+      console.warn('Could not set offline status before logout', err);
+    }
+  }
+
+  // 2. Now sign out (this invalidates the token)
+  await logout(); // your store's logout: signOut(auth) + set user null
+
+  // 3. Navigate away (this will unmount the root layout)
+  router.replace('/AuthWrapper');
+}, [logout, router]);
 
   // ── Delete account handler ──────────────────────────────────────────────────
   const handleDeleteAccount = useCallback(async () => {

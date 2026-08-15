@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/providers/ThemeProvider';
+import { useAuthStore } from '@/stores/auth';
+import { useUnreadChatCount } from '@/stores/chat';
 
 interface ModernAppBarProps {
-  user: Record<string, any>;
+  userInfo: Record<string, any>;
 }
 
 const getTimeBasedGreeting = (): string => {
@@ -25,16 +27,19 @@ const getTimeBasedGreeting = (): string => {
 
 const STATUS_BAR_HEIGHT = Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 44;
 
-export const ModernAppBar: React.FC<ModernAppBarProps> = ({ user }) => {
+export const ModernAppBar: React.FC<ModernAppBarProps> = ({ userInfo }) => {
   const router = useRouter();
   const { theme } = useTheme();
   const colors = theme.colors;
+
+  const user = useAuthStore((s) => s.user);
+  const unreadCount = useUnreadChatCount(user?.uid);
 
   // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const greeting = getTimeBasedGreeting();
-  const initial = (user?.displayName as string)?.[0]?.toUpperCase() ?? 'U';
+  const initial = (userInfo?.displayName as string)?.[0]?.toUpperCase() ?? 'U';
 
   return (
     <View style={styles.container}>
@@ -47,13 +52,30 @@ export const ModernAppBar: React.FC<ModernAppBarProps> = ({ user }) => {
         </View>
         <View style={styles.greetingCol}>
           <Text style={styles.helloText}>
-            Hello {user?.displayName ?? ''},
+            Hello {userInfo?.displayName ?? ''},
           </Text>
           <Text style={styles.greetingText}>{greeting}</Text>
         </View>
       </View>
 
       {/* Right — Search button */}
+      <View style={styles.rightIcons}>
+        <TouchableOpacity
+          style={styles.searchBtn}
+          onPress={() => router.push('/chats/chats')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.iconWrapper}>
+            <Text style={styles.searchIcon}>💬</Text>
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
       <TouchableOpacity
         style={styles.searchBtn}
         onPress={() => router.push('/search')}
@@ -61,6 +83,7 @@ export const ModernAppBar: React.FC<ModernAppBarProps> = ({ user }) => {
       >
         <Text style={styles.searchIcon}>🔍</Text>
       </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -115,8 +138,40 @@ const createStyles = (colors: any) =>
       backgroundColor: 'rgba(255,255,255,0.2)',
       alignItems: 'center',
       justifyContent: 'center',
+      marginLeft: 10
     },
     searchIcon: {
       fontSize: 18,
     },
+    rightIcons: {
+      flexDirection: 'row',
+    },
+
+    iconWrapper: {
+    position: 'relative', // needed for absolute children
+    width: 40,            // adjust to match your icon size
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,              // tweak to overlap the top-right corner
+    right: -6,
+    backgroundColor: '#FF3B30', // red badge
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#fff', // optional white border for contrast
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   });

@@ -14,6 +14,7 @@ interface ResultCardProps {
   item: any;
 }
 
+
 export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
   const router = useRouter();
   const { theme } = useTheme();
@@ -31,17 +32,39 @@ export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
 
   const services = item.services?.slice(0, 3) || [];
 
+
+  // ─── Rating row ────────────────────────────────────────────────────────
+const RatingRow = React.memo<{ rating: number; reviews?: number; small?: boolean; colors: any }>(
+  ({ rating, reviews, small, colors }) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+      <Text style={{ fontSize: small ? 10 : 14 }}>⭐</Text>
+      <Text style={{ fontWeight: '700', fontSize: small ? 10 : 13, color: colors.text }}>
+        {rating.toFixed(1)}
+      </Text>
+      {reviews !== undefined && !small && (
+        <Text style={{ color: colors.textSecondary, fontSize: 12 }}>({reviews} reviews)</Text>
+      )}
+      <View style={styles.distance}>
+        <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+        <Text style={[styles.distanceText, { color: colors.textSecondary }]}>
+          {formatDistance(item.distance)}
+        </Text>
+      </View>
+    </View>
+  )
+);
+
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={styles.listCard}
       onPress={() => router.push(`/service/${item.id}`)}
       activeOpacity={0.85}
     >
       {/* Image */}
-      <View style={styles.imageContainer}>
+      <View style={styles.tileImage}>
         <Image
           source={{ uri: item.images?.[0] }}
-          style={styles.image}
+          style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={200}
           placeholder={colors.surface || '#f3f4f6'}
@@ -50,54 +73,15 @@ export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
           <Ionicons name="heart-outline" size={20} color={colors.primary} />
         </View>
       </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {item.isVerified && (
-            <Ionicons name="checkmark-circle" size={16} color={colors.success || '#10B981'} style={styles.verifiedIcon} />
-          )}
-        </View>
-
-        <View style={styles.ratingRow}>
-          <Ionicons name="star" size={14} color="gold" />
-          <Text style={[styles.rating, { color: colors.text }]}>
-            {item.rating?.toFixed(1) || '0.0'}
-          </Text>
-          <Text style={[styles.reviews, { color: colors.textSecondary }]}>
-            ({item.totalReviews || 0} reviews)
-          </Text>
-          <View style={styles.distance}>
-            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-            <Text style={[styles.distanceText, { color: colors.textSecondary }]}>
-              {formatDistance(item.distance)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-          <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={2}>
-            {item.district || 'Unknown location'}
-            {item.landmark ? `, ${item.landmark}` : ''}
-          </Text>
-        </View>
-
-        {/* Service chips */}
-        {services.length > 0 && (
-          <View style={styles.serviceChips}>
-            {services.map((service: any, i: number) => (
-              <View key={i} style={[styles.chip, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
-                <Text style={[styles.chipText, { color: '#fff' }]}>
-                  {typeof service === 'object' ? service.name : String(service)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+      <View style={styles.listBody}>
+        <Text style={styles.listName} numberOfLines={2}>
+          {item.name ?? ''}
+        </Text>
+        <RatingRow rating={item.rating ?? 0} reviews={item.totalReviews ?? 0} colors={colors} />
+        <Text style={styles.listLocation} numberOfLines={2}>
+          {item.district ?? 'Unknown location'}
+          {item.landmark ? `, ${item.landmark}` : ''}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -106,24 +90,26 @@ export const ResultCard: React.FC<ResultCardProps> = ({ item }) => {
 // ─── Style factory ──────────────────────────────────────────────────────────
 const createStyles = (colors: any) =>
   StyleSheet.create({
-    card: {
+    listCard: {
       backgroundColor: colors.card || colors.background,
       borderRadius: 15,
       marginBottom: 16,
-      overflow: 'hidden',
+      flexDirection: 'row',
       shadowColor: colors.shadow || '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      elevation: 3,
+      overflow: 'hidden',
     },
-    imageContainer: {
-      position: 'relative',
-    },
+    tileImage: { height: 120, width: '35%' },
     image: {
       width: '100%',
-      height: 160,
     },
+    listBody: { flex: 1, padding: 12, gap: 10, justifyContent: 'center' },
+    listName: { fontSize: 14, fontWeight: '700', color: colors.text },
+    listLocation: { color: colors.textSecondary, fontSize: 12 },
+
     favoriteIcon: {
       position: 'absolute',
       top: 12,

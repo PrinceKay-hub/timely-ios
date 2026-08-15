@@ -1,6 +1,9 @@
+// services/searchService.ts
+
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import * as Location from 'expo-location';
-import { app } from '@/firebase'; // adjust path
+import { app } from '@/firebase';
+import { AppError, mapLocationError, mapSearchError } from '@/utils/errorMapper';
 
 const functions = getFunctions(app);
 
@@ -14,49 +17,29 @@ export interface SearchParams {
   pageSize?: number;
 }
 
-/**
- * Calls the Firebase Cloud Function 'searchProviders' with the user's current location.
- */
-export const searchProviders = async (params: SearchParams): Promise<any[]> => {
-  try {
+export interface SearchByCategoryParams {
+  category: string;
+  maxDistanceKm?: number;
+  sortBy?: string;
+  page?: number;
+  pageSize?: number;
+}
 
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      throw new Error('Location permission required');
-    }
-    const location = await Location.getCurrentPositionAsync({});
-    const userLat = location.coords.latitude;
-    const userLng = location.coords.longitude;
+export interface SearchResponse {
+  providers: any[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
 
-    const searchFn = httpsCallable(functions, 'searchProviders');
-    const result = await searchFn({
-      query: params.query,
-      region: params.region,
-      district: params.district,
-      userLat,
-      userLng,
-      maxDistanceKm: params.maxDistanceKm ?? 10,
-      sortBy: params.sortBy ?? 'distance',
-      page: params.page ?? 1,
-      pageSize: params.pageSize ?? 20,
-    });
-    const data = result.data as any;
-    return data.providers || [];
-  } catch (error) {
-    console.error('Search error details:', error);
-    throw error; // This will be caught by the store
-  }
-};
+// ─── Shared location fetching ───────────────────────────────────────────────
 
-
-
-
-// Simple location cache
 let cachedPosition: Location.LocationObject | null = null;
 let lastLocationUpdate: number | null = null;
-const LOCATION_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in ms
+const LOCATION_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-async function getUserLocation(forceRefresh = false): Promise<Location.LocationObject> {
+export async function getUserLocation(forceRefresh = false): Promise<Location.LocationObject> {
   const now = Date.now();
   if (
     !forceRefresh &&
@@ -67,72 +50,101 @@ async function getUserLocation(forceRefresh = false): Promise<Location.LocationO
     return cachedPosition;
   }
 
-  // Check if location services are enabled
-  const serviceEnabled = await Location.hasServicesEnabledAsync();
-  if (!serviceEnabled) {
-    throw new Error('Location services are disabled.');
+  try {
+    const serviceEnabled = await Location.hasServicesEnabledAsync();
+    if (!serviceEnabled) {
+      throw new AppError(
+        'Turn on location services to find providers near you.',
+        'location-service-disabled'
+      );
+    }
+
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      throw new AppError(
+        'Location access is needed to search nearby. Please allow it and try again.',
+        'location-permission-denied'
+      );
+    }
+
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+      timeout: 10000, // 10 seconds
+    });
+
+    cachedPosition = position;
+    lastLocationUpdate = now;
+    return position;
+  } catch (error) {
+    // Re‑throw as a friendly AppError (if not already)
+    throw mapLocationError(error);
   }
-
-  // Request permissions
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') {
-    throw new Error('Location permission is required to search nearby services.');
-  }
-
-  // Get current position
-  const position = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
-  });
-
-  // Cache it
-  cachedPosition = position;
-  lastLocationUpdate = now;
-
-  return position;
 }
 
-export interface SearchByCategoryParams {
-  category: string;
-  maxDistanceKm?: number;
-  sortBy?: string;
-  page?: number;
-  pageSize?: number;
-}
+// ─── Search functions ───────────────────────────────────────────────────────
 
-/**
- * Searches providers by category using a Firebase Cloud Function.
- * Returns an array of provider objects.
- */
+export const searchProviders = async (params: SearchParams): Promise<SearchResponse> => {
+  try {
+    const position = await getUserLocation();
+
+    const searchFn = httpsCallable(functions, 'searchProviders');
+    const result = await searchFn({
+      query: params.query,
+      region: params.region,
+      district: params.district,
+      userLat: position.coords.latitude,
+      userLng: position.coords.longitude,
+      maxDistanceKm: params.maxDistanceKm ?? 10,
+      sortBy: params.sortBy ?? 'distance',
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 20,
+    });
+
+    const data = result.data as SearchResponse;
+    return {
+      providers: data.providers || [],
+      totalCount: data.totalCount ?? 0,
+      page: data.page ?? params.page ?? 1,
+      pageSize: data.pageSize ?? params.pageSize ?? 20,
+      hasMore: data.hasMore ?? false,
+    };
+  } catch (error) {
+    console.error('Search error details:', error);
+    throw mapSearchError(error);
+  }
+};
+
 export const searchByCategory = async ({
   category,
   maxDistanceKm = 10,
   sortBy = 'distance',
   page = 1,
   pageSize = 20,
-}: SearchByCategoryParams): Promise<any[]> => {
+}: SearchByCategoryParams): Promise<SearchResponse> => {
   try {
-    // Get user location (cached)
-    const userPosition = await getUserLocation();
-    const userLat = userPosition.coords.latitude;
-    const userLng = userPosition.coords.longitude;
+    const position = await getUserLocation();
 
-    const functions = getFunctions(app);
     const searchFn = httpsCallable(functions, 'searchByCategory');
     const result = await searchFn({
       category,
-      userLat,
-      userLng,
+      userLat: position.coords.latitude,
+      userLng: position.coords.longitude,
       maxDistanceKm,
       sortBy,
       page,
       pageSize,
     });
 
-    const data = result.data as any;
-    // Expecting the cloud function to return { providers: [...] }
-    return data.providers || [];
+    const data = result.data as SearchResponse;
+    return {
+      providers: data.providers || [],
+      totalCount: data.totalCount ?? 0,
+      page: data.page ?? page,
+      pageSize: data.pageSize ?? pageSize,
+      hasMore: data.hasMore ?? false,
+    };
   } catch (error) {
     console.error('Error in searchByCategory:', error);
-    throw error; // rethrow so the caller can handle it
+    throw mapSearchError(error);
   }
 };

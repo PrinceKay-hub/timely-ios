@@ -6,9 +6,6 @@ import {
   StatusBar,
   RefreshControl,
   ScrollView,
-  Text,
-  FlatList,
-  ActivityIndicator
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '@/firebase';
@@ -114,7 +111,7 @@ export default function Home() {
   return (
     <View style={styles.root}>
       <StatusBar translucent backgroundColor="transparent"  />
-      <ModernAppBar user={userInfo} />
+      <ModernAppBar userInfo={userInfo} />
       <ScrollView 
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}

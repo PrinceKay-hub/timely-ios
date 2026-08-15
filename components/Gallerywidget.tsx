@@ -117,13 +117,13 @@ export default function GalleryWidget({ images, index, onClose }: GalleryWidgetP
       >
         <SafeAreaView edges={['top']} style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Ionicons name="chevron-back" size={24} color={colors.text || '#fff'} />
+            <Ionicons name="chevron-back" size={24} color={ '#fff'} />
           </TouchableOpacity>
-          <Text style={[styles.counter, { color: colors.text || '#fff' }]}>
+          <Text style={[styles.counter, { color: '#fff' }]}>
             {currentIndex + 1} / {images.length}
           </Text>
           <TouchableOpacity onPress={handleRotate} style={styles.headerButton}>
-            <Ionicons name="refresh" size={24} color={colors.primary} />
+            <Ionicons name="refresh" size={24} color={'#fff'} />
           </TouchableOpacity>
         </SafeAreaView>
 

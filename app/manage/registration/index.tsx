@@ -278,3 +278,5 @@ const createStyles = (colors: any) =>
     },
     addAnotherText: { fontSize: 15, fontWeight: '600' },
   });
+
+  {/** */}

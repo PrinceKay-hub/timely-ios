@@ -39,6 +39,7 @@ export const createBooking = async (booking: BookingEntity): Promise<string> => 
     // Update the document with its own ID
     await updateDoc(docRef, { id: docRef.id });
 
+
     // Create notification for the provider
     await createProviderNotification(docRef.id, booking);
 

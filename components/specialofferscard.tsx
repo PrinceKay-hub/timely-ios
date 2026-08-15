@@ -8,6 +8,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useHomeStore } from '@/stores/home';
 import { useTheme } from '@/providers/ThemeProvider';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '@/firebase';
 
 interface SpecialOffersCardProps {
   user: Record<string, any>;
@@ -18,11 +20,13 @@ export const SpecialOffersCard: React.FC<SpecialOffersCardProps> = ({ user }) =>
   const { showSnackbar } = useHomeStore();
   const { theme } = useTheme();
   const colors = theme.colors;
+  const functions = getFunctions(app);
 
   // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
+
     if (user?.isEmailVerified === false) {
       showSnackbar('Email not verified. Go to Profile Screen', 'error');
     } else {

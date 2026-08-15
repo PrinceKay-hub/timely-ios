@@ -64,7 +64,7 @@ export default function SplashScreen() {
         Timely
       </Animated.Text>
       <Animated.Text style={[styles.tagline, { opacity: fadeAnim }]}>
-        Your Style, Our Priority
+        Beauty, on time
       </Animated.Text>
     </View>
   );

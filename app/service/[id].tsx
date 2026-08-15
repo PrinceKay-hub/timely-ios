@@ -1,31 +1,31 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Share,
-  FlatList,
-  Dimensions,
-  Platform,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs, MaterialTabBar } from 'react-native-collapsible-tab-view';
+import GalleryWidget from '@/components/Gallerywidget';
+import { PortfolioTabContent } from '@/components/portfolio/PortfolioTab';
+import { Snackbar } from '@/components/Snackbar';
+import WorkingHoursDisplay from '@/components/WorkingHoursDisplay';
+import { useTheme } from '@/providers/ThemeProvider';
 import { useAuthStore } from '@/stores/auth';
+import { useChatStore } from '@/stores/chat';
 import { useFavoriteStore } from '@/stores/favorite';
 import { useReviewStore } from '@/stores/reviewService';
-import WorkingHoursDisplay from '@/components/WorkingHoursDisplay';
 import { useServiceDataStore } from '@/stores/serviceData';
-import { Snackbar } from '@/components/Snackbar';
-import { useEffect } from 'react';
-import { PortfolioTabContent } from '@/components/portfolio/PortfolioTab';
-import GalleryWidget from '@/components/Gallerywidget';
-import { useTheme } from '@/providers/ThemeProvider';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Linking,
+  Platform,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { MaterialTabBar, Tabs } from 'react-native-collapsible-tab-view';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
@@ -33,7 +33,7 @@ const HEADER_HEIGHT = 300;
 export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { favoriteIds, toggleFavorite } = useFavoriteStore();
   const { reviews, fetchReviews, isLoading: reviewsLoading } = useReviewStore();
   const { currentService, isLoading, error, fetchServiceById } = useServiceDataStore();
@@ -47,6 +47,7 @@ export default function DetailScreen() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLoadingDirections, setIsLoadingDirections] = useState(false);
+  const [isOpeningChat, setIsOpeningChat] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     visible: boolean;
     message: string;
@@ -107,20 +108,44 @@ export default function DetailScreen() {
     }
   };
 
-  const handleWhatsApp = async () => {
-    if (!currentService?.number) {
-      Alert.alert('Error', 'WhatsApp number not available');
+  // Replaces the old WhatsApp deep-link — messaging now happens in-app via
+  // the chat feature (stores/chat.ts) instead of handing the person off to
+  // a separate app. getOrCreateChat is idempotent, so tapping this
+  // repeatedly for the same provider just reopens the same conversation.
+  // NOTE: `currentService.providerPhoto` is a guess at the field name for
+  // the provider's own avatar — if that's not the real field on your
+  // service object, it'll just fall through to the service's first image
+  // as the avatar shown in chat, which still works fine visually.
+  const handleMessage = useCallback(async () => {
+    if (!currentService?.providerId) {
+      Alert.alert('Error', 'Provider not available');
       return;
     }
-    const trimmedNumber = currentService.number.replace(/[^0-9]/g, '');
-    const url = `whatsapp://send?phone=${trimmedNumber}&text=Hello!`;
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert('WhatsApp not installed', 'Please install WhatsApp to use this feature.');
+    if (!user?.uid) {
+      Alert.alert('Sign in required', 'Please sign in to message this provider.');
+      return;
     }
-  };
+    setIsOpeningChat(true);
+    try {
+      const chatId = await useChatStore.getState().getOrCreateChat({
+        currentUserId: user.uid,
+        currentUserName: profile?.displayName || user.displayName,
+        currentUserPhoto: profile?.photoURL || user.photoURL,
+        otherUserId: currentService.providerId,
+        otherUserName: currentService.name,
+        otherUserPhoto: currentService.providerPhoto || currentService.images?.[0],
+        serviceId: currentService.id,
+        serviceName: currentService.name,
+        providerId: currentService.providerId,
+      });
+      router.push(`/chats/${chatId}`);
+    } catch (error) {
+      console.error('Failed to open chat:', error);
+      Alert.alert('Error', 'Could not open chat. Please try again.');
+    } finally {
+      setIsOpeningChat(false);
+    }
+  }, [currentService, user, profile]);
 
   const handleDirections = async () => {
     if (!currentService?.latitude || !currentService?.longitude) {
@@ -162,13 +187,14 @@ export default function DetailScreen() {
   };
 
   const handleBook = () => {
+    if (!currentService) return;
     if (!user?.emailVerified) {
       Alert.alert('Email not verified', 'Please verify your email in the Profile screen to book.');
       return;
     }
     router.push({
       pathname: '/booking/[id]',
-      params: { id: currentService?.id }
+      params: { id: currentService.id }
     });
   };
 
@@ -212,12 +238,27 @@ export default function DetailScreen() {
   }
 
   // ─── QuickAction helper (nested to access styles) ─────────────────────────
-  const QuickAction = ({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) => (
+  const QuickAction = ({
+    icon,
+    label,
+    onPress,
+    loading,
+  }: {
+    icon: string;
+    label: string;
+    onPress: () => void;
+    loading?: boolean;
+  }) => (
     <TouchableOpacity
-      style={[styles.quickAction, { backgroundColor: colors.card, shadowColor: colors.shadow || '#000' }]}
+      style={[styles.quickAction, { backgroundColor: colors.card, shadowColor:  '#000' }]}
       onPress={onPress}
+      disabled={loading}
     >
-      <Ionicons name={icon as any} size={24} color={colors.primary} />
+      {loading ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <Ionicons name={icon as any} size={24} color={colors.primary} />
+      )}
       <Text style={[styles.quickActionLabel, { color: colors.text }]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -279,7 +320,7 @@ export default function DetailScreen() {
         </View>
         {currentService?.images && currentService.images.length > 1 && (
           <View style={styles.indicatorContainer}>
-            {currentService.images.map((_, i) => (
+            {currentService.images.map((_: any, i: Key | null | undefined) => (
               <View
                 key={i}
                 style={[
@@ -307,7 +348,10 @@ export default function DetailScreen() {
         </View>
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={20} color={colors.primary} />
-          <Text style={[styles.locationText, { color: colors.textSecondary }]}>{currentService?.district}</Text>
+          <Text style={[styles.locationText, { color: colors.textSecondary }]}>
+            {currentService?.district}
+            {currentService.landmark ? `, ${currentService.landmark}` : ''}
+          </Text>
         </View>
         <View style={styles.ratingRow}>
           <Ionicons name="star" size={16} color="gold" />
@@ -328,7 +372,9 @@ export default function DetailScreen() {
 
       <View style={styles.quickActions}>
         <QuickAction icon="call-outline" label="Call" onPress={handleCall} />
-        <QuickAction icon="logo-whatsapp" label="WhatsApp" onPress={handleWhatsApp} />
+        {currentService?.providerId !== user?.uid && (
+          <QuickAction icon="chatbubble-outline" label="Message" onPress={handleMessage} loading={isOpeningChat} />
+        )}
         <QuickAction icon="navigate-outline" label="Direction" onPress={handleDirections} />
       </View>
 
@@ -339,7 +385,7 @@ export default function DetailScreen() {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Services & Pricing</Text>
-        {currentService?.services.map((s, i) => (
+        {currentService?.services.map((s: { name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; duration: number; price: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; }, i: Key | null | undefined) => (
           <View key={i} style={[styles.serviceItem, { backgroundColor: colors.surface }]}>
             <View style={[styles.serviceIcon, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
               <Ionicons name="cut" size={20} color={colors.primary} />
@@ -355,13 +401,20 @@ export default function DetailScreen() {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Business Hours</Text>
-        {currentService && <WorkingHoursDisplay service={currentService} />}
+        {currentService && (
+          <WorkingHoursDisplay
+            service={{
+              workingDays: currentService.workingDays,
+              workingHours: currentService.workingHours,
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Amenities</Text>
         <View style={styles.amenitiesWrap}>
-          {currentService?.amenities.map((a, i) => (
+          {currentService?.amenities.map((a: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined, i: Key | null | undefined) => (
             <View key={i} style={[styles.amenityChip, { backgroundColor: colors.surface }]}>
               <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
               <Text style={[styles.amenityText, { color: colors.textSecondary }]}>{a}</Text>

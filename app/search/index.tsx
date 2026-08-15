@@ -11,23 +11,20 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelectedLocationStore } from '@/stores/selectedLocationStore';
 import { db } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuthStore } from '@/stores/auth';
 import { useTheme } from '@/providers/ThemeProvider';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
   const { selectedLocation } = useSelectedLocationStore();
   const { theme } = useTheme();
   const colors = theme.colors;
 
-  // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,7 +35,7 @@ export default function SearchScreen() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const searchInputRef = useRef<TextInput>(null);
-  const debounceTimer = useRef<number | null>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch service list from Firestore
   useEffect(() => {
@@ -79,9 +76,13 @@ export default function SearchScreen() {
   // Save recent searches
   const saveRecentSearch = async (query: string) => {
     if (!query.trim()) return;
-    const updated = [query, ...recentSearches.filter(q => q !== query)].slice(0, 5);
+    const updated = [query, ...recentSearches.filter((q) => q !== query)].slice(0, 5);
     setRecentSearches(updated);
-    await AsyncStorage.setItem('recentSearches', JSON.stringify(updated));
+    try {
+      await AsyncStorage.setItem('recentSearches', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to save recent search', error);
+    }
   };
 
   // Debounced search for suggestions
@@ -90,7 +91,7 @@ export default function SearchScreen() {
     debounceTimer.current = setTimeout(() => {
       if (searchQuery.trim().length > 0) {
         const filtered = serviceList
-          .filter(item => item.toLowerCase().includes(searchQuery.toLowerCase()))
+          .filter((item) => item.toLowerCase().includes(searchQuery.toLowerCase()))
           .slice(0, 5);
         setSuggestions(filtered);
         setShowSuggestions(filtered.length > 0);
@@ -104,12 +105,6 @@ export default function SearchScreen() {
     };
   }, [searchQuery, serviceList]);
 
-  const handleSuggestionSelect = (suggestion: string) => {
-    setSearchQuery(suggestion);
-    setShowSuggestions(false);
-    Keyboard.dismiss();
-  };
-
   const handleClearSearch = () => {
     setSearchQuery('');
     setSuggestions([]);
@@ -117,8 +112,13 @@ export default function SearchScreen() {
     searchInputRef.current?.focus();
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
+  // Accepts an explicit term so callers that just set state (recent search
+  // taps, suggestion taps) don't fall victim to React's async state update —
+  // reading `searchQuery` here directly after calling setSearchQuery would
+  // use the *previous* render's value, not the one just selected.
+  const performSearch = async (term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed) {
       Alert.alert('Missing search term', 'Please enter a search term');
       return;
     }
@@ -127,16 +127,29 @@ export default function SearchScreen() {
       return;
     }
 
-    await saveRecentSearch(searchQuery.trim());
+    setShowSuggestions(false);
+    Keyboard.dismiss();
+    await saveRecentSearch(trimmed);
 
     router.push({
       pathname: '/search/results',
       params: {
-        query: searchQuery.trim(),
+        query: trimmed,
         location: selectedLocation,
-        user: JSON.stringify(user),
       },
     });
+  };
+
+  const handleSearch = () => performSearch(searchQuery);
+
+  const handleSuggestionSelect = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    performSearch(suggestion);
+  };
+
+  const handleRecentSelect = (item: string) => {
+    setSearchQuery(item);
+    performSearch(item);
   };
 
   const navigateToLocationSelection = () => {
@@ -146,12 +159,20 @@ export default function SearchScreen() {
   const removeRecentSearch = async (index: number) => {
     const updated = recentSearches.filter((_, i) => i !== index);
     setRecentSearches(updated);
-    await AsyncStorage.setItem('recentSearches', JSON.stringify(updated));
+    try {
+      await AsyncStorage.setItem('recentSearches', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Failed to remove recent search', error);
+    }
   };
 
   const clearAllRecent = async () => {
     setRecentSearches([]);
-    await AsyncStorage.removeItem('recentSearches');
+    try {
+      await AsyncStorage.removeItem('recentSearches');
+    } catch (error) {
+      console.error('Failed to clear recent searches', error);
+    }
   };
 
   return (
@@ -164,18 +185,24 @@ export default function SearchScreen() {
         <View style={styles.searchRow}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={[styles.backButton, { backgroundColor: colors.background }]}
+            style={styles.backButton}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+
+          <View style={styles.searchPill}>
+            <Ionicons name="search" size={18} color="rgba(255,255,255,0.85)" style={{ marginRight: 8 }} />
             <TextInput
               ref={searchInputRef}
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="What service are you looking for?"
-              placeholderTextColor={colors.textSecondary || '#999'}
+              style={styles.searchPillInput}
+              placeholder="Search for a service"
+              placeholderTextColor="rgba(255,255,255,0.7)"
               value={searchQuery}
               onChangeText={setSearchQuery}
+              returnKeyType="search"
+              onSubmitEditing={handleSearch}
               onFocus={() => {
                 if (searchQuery.length > 0 && suggestions.length > 0) {
                   setShowSuggestions(true);
@@ -183,28 +210,38 @@ export default function SearchScreen() {
               }}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={handleClearSearch} style={styles.clearButton}>
-                <Ionicons name="close-circle" size={20} color={colors.textSecondary || '#999'} />
+              <TouchableOpacity
+                onPress={handleClearSearch}
+                style={styles.clearButton}
+                accessibilityLabel="Clear search"
+                accessibilityRole="button"
+              >
+                <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.85)" />
               </TouchableOpacity>
             )}
           </View>
+
           <TouchableOpacity
             onPress={handleSearch}
-            style={[styles.searchButton, { backgroundColor: colors.primary }]}
+            style={styles.searchIconButton}
+            accessibilityLabel="Search"
+            accessibilityRole="button"
           >
-            <Ionicons name="search" size={24} color="white" />
+            <Ionicons name="arrow-forward" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.locationSelector, { backgroundColor: colors.background }]}
+          style={styles.locationRow}
           onPress={navigateToLocationSelection}
+          accessibilityLabel="Select location"
+          accessibilityRole="button"
         >
-          <Ionicons name="location-outline" size={20} color={colors.primary} />
-          <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
-            {selectedLocation || 'Select Location'}
+          <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.9)" />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {' '}{selectedLocation || 'Select Location'}
           </Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary || 'gray'} />
+          <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       </View>
 
@@ -218,6 +255,8 @@ export default function SearchScreen() {
                 <TouchableOpacity
                   style={styles.suggestionItem}
                   onPress={() => handleSuggestionSelect(item)}
+                  accessibilityLabel={`Search for ${item}`}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="search-outline" size={20} color={colors.primary} />
                   <Text style={[styles.suggestionText, { color: colors.text }]}>{item}</Text>
@@ -233,23 +272,26 @@ export default function SearchScreen() {
           <View style={styles.recentContainer}>
             {recentSearches.length > 0 && (
               <View style={styles.recentHeader}>
-                <Text style={[styles.recentTitle, { color: colors.text }]}>Popular Searches</Text>
-                <TouchableOpacity onPress={clearAllRecent}>
+                <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Searches</Text>
+                <TouchableOpacity
+                  onPress={clearAllRecent}
+                  accessibilityLabel="Clear all recent searches"
+                  accessibilityRole="button"
+                >
                   <Text style={[styles.clearAllText, { color: colors.primary }]}>Clear All</Text>
                 </TouchableOpacity>
               </View>
             )}
             <FlatList
               data={recentSearches}
-              keyExtractor={(item, index) => index.toString()}
+              keyExtractor={(item, index) => `${item}-${index}`}
               renderItem={({ item, index }) => (
                 <View style={[styles.recentItem, { backgroundColor: colors.card }]}>
                   <TouchableOpacity
                     style={styles.recentContent}
-                    onPress={() => {
-                      setSearchQuery(item);
-                      handleSearch();
-                    }}
+                    onPress={() => handleRecentSelect(item)}
+                    accessibilityLabel={`Search for ${item}`}
+                    accessibilityRole="button"
                   >
                     <View
                       style={[
@@ -261,7 +303,12 @@ export default function SearchScreen() {
                     </View>
                     <Text style={[styles.recentText, { color: colors.text }]}>{item}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => removeRecentSearch(index)} style={styles.removeRecent}>
+                  <TouchableOpacity
+                    onPress={() => removeRecentSearch(index)}
+                    style={styles.removeRecent}
+                    accessibilityLabel={`Remove ${item} from recent searches`}
+                    accessibilityRole="button"
+                  >
                     <Ionicons name="close" size={18} color={colors.textSecondary || 'gray'} />
                   </TouchableOpacity>
                 </View>
@@ -283,48 +330,47 @@ const createStyles = (colors: any) =>
     container: { flex: 1 },
     header: {
       paddingTop: 50,
-      paddingBottom: 30,
+      paddingBottom: 20,
       paddingHorizontal: 16,
       borderBottomLeftRadius: 30,
       borderBottomRightRadius: 30,
     },
     searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
     backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    searchPill: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    searchPillInput: {
+      flex: 1,
+      color: 'white',
+      fontSize: 15,
+      padding: 0,
+    },
+    clearButton: { padding: 4, marginLeft: 4 },
+    searchIconButton: {
       width: 40,
       height: 40,
       borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 8,
+      marginLeft: 8,
+      backgroundColor: 'rgba(255,255,255,0.2)',
     },
-    searchContainer: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 25,
-      paddingHorizontal: 12,
-      marginRight: 8,
-    },
-    searchInput: {
-      flex: 1,
-      paddingVertical: 12,
-      fontSize: 14,
-    },
-    clearButton: { padding: 4 },
-    searchButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    locationSelector: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 15,
-      padding: 12,
-    },
-    locationText: { flex: 1, marginLeft: 8, fontWeight: '600' },
+    locationRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 46 },
+    locationText: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600', flexShrink: 1 },
     content: { flex: 1, padding: 16 },
     suggestionsContainer: {
       borderRadius: 15,

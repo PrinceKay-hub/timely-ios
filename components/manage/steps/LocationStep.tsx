@@ -73,6 +73,7 @@ export const LocationStep = () => {
   };
 
   // ── Parse selectedLocation into region/district and geocode ──
+  {/**
   useEffect(() => {
     if (!selectedLocation || selectedLocation === 'Select Location') return;
 
@@ -105,7 +106,7 @@ export const LocationStep = () => {
     };
     geocodeRegion();
   }, [selectedLocation]);
-
+ */}
   const handlePhoneChange = (text: string) => {
     updateServiceField('number', text);
   };
@@ -129,7 +130,7 @@ export const LocationStep = () => {
   // Determine button label
   const getButtonLabel = () => {
     if (hasCoordinates) return 'Location set - Tap to update';
-    return "I'm at the premises now";
+    return "Set Precise Shop Location (GPS)";
   };
 
   return (

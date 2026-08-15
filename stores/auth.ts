@@ -230,6 +230,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           if (hasEssentials) return data;
 
           const backfill = stripUndefined({
+            id: uid,
             displayName:
               data.displayName ||
               appleFullName ||
@@ -238,6 +239,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               'User',
             email: data.email || appleEmail || currentUser?.email,
             userType: data.userType || 'client',
+            isProvider: data.isProvider || false,
             // Preserve an existing createdAt if one is already there —
             // only fall back to "now" if it's genuinely never been set.
             createdAt: data.createdAt || new Date().toISOString(),
@@ -252,6 +254,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // branch for the same doc — Firestore will abort and retry the
         // loser, which will then see the doc as existing.
         const defaultProfile = stripUndefined({
+          id: uid,
           displayName:
             appleFullName ||
             currentUser?.displayName ||
@@ -259,6 +262,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             'User',
           email: appleEmail || currentUser?.email,
           userType: 'client',
+          isProvider: false,
           createdAt: new Date().toISOString(),
         });
         tx.set(docRef, defaultProfile, { merge: true });

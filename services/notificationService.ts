@@ -6,12 +6,14 @@ interface SendNotificationParams {
   deviceToken: string;
   title: string;
   body: string;
+  data?: {}
 }
 
 export const sendNotification = async ({
   deviceToken,
   title,
   body,
+  data,
 }: SendNotificationParams): Promise<void> => {
   const user = auth.currentUser;
   if (!user) throw new Error('User not signed in');
@@ -29,6 +31,7 @@ export const sendNotification = async ({
         token: deviceToken,
         title,
         body,
+        data,
       }),
     });
 
