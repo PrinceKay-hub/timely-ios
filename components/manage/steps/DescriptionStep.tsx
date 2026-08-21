@@ -66,7 +66,7 @@ export const DescriptionStep = () => {
     throw new Error(`Failed to load text: ${response.status} ${JSON.stringify(errorBody)}`);
   };
 
-  const callGroq = async (): Promise<string> => {
+  const callGroq = async (model: string): Promise<string> => {
     const groqApiKey = process.env.EXPO_PUBLIC_GROQ_API_KEY;
     const url = 'https://api.groq.com/openai/v1/chat/completions';
     const prompt = `Write a short, professional marketplace description for "${serviceName}" under the "${category}" category. Keep it under 3 sentences.`;
@@ -78,19 +78,19 @@ export const DescriptionStep = () => {
         Authorization: `Bearer ${groqApiKey}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`Groq failed: ${response.status} ${errorBody}`);
+      throw new Error(`Groq (${model}) failed: ${response.status} ${errorBody}`);
     }
 
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error('No content returned from Groq');
+    if (!content) throw new Error(`No content returned from Groq (${model})`);
     return content as string;
   };
 
@@ -106,8 +106,13 @@ export const DescriptionStep = () => {
       try {
         aiText = await callGeminiWithRetry();
       } catch (e) {
-        console.warn('Gemini failed, falling back to Groq:', e);
-        aiText = await callGroq();
+        console.warn('Gemini failed, falling back to Groq (gpt-oss-120b):', e);
+        try {
+          aiText = await callGroq('openai/gpt-oss-120b');
+        } catch (e2) {
+          console.warn('Groq gpt-oss-120b failed, falling back to Groq (qwen3.6-27b):', e2);
+          aiText = await callGroq('qwen/qwen3.6-27b');
+        }
       }
 
       const trimmed = aiText.trim();

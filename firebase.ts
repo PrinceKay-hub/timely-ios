@@ -16,6 +16,12 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  // Don't let this throw and take the whole app down silently.
+  // Log to your crash reporter here if you have one wired up this early.
+  console.error('Firebase config missing at build time — check EAS env vars for this build profile.');
+}
+
 // Export the app instance for use with Firebase Functions
 export const app = initializeApp(firebaseConfig);
 

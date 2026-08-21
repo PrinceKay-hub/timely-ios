@@ -26,6 +26,13 @@ export const LocationStep = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
+  // ── Sync region/district picked on RegionsScreen back into currentService ──
+  useEffect(() => {
+    if (selectedLocation) {
+      updateServiceField('location', selectedLocation);
+    }
+  }, [selectedLocation]);
+
   const hasCoordinates =
     currentService?.latitude != null &&
     currentService?.longitude != null &&
