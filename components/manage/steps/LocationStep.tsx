@@ -26,13 +26,6 @@ export const LocationStep = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
-  // ── Sync region/district picked on RegionsScreen back into currentService ──
-  useEffect(() => {
-    if (selectedLocation) {
-      updateServiceField('location', selectedLocation);
-    }
-  }, [selectedLocation]);
-
   const hasCoordinates =
     currentService?.latitude != null &&
     currentService?.longitude != null &&
@@ -80,7 +73,7 @@ export const LocationStep = () => {
   };
 
   // ── Parse selectedLocation into region/district and geocode ──
-  {/**
+  
   useEffect(() => {
     if (!selectedLocation || selectedLocation === 'Select Location') return;
 
@@ -95,25 +88,25 @@ export const LocationStep = () => {
     updateServiceField('location', selectedLocation);
 
     // Only geocode if we don't have GPS coordinates
-    if (hasCoordinates) return;
+    //if (hasCoordinates) return;
 
-    const geocodeRegion = async () => {
-      setIsGeocoding(true);
-      try {
-        const results = await Location.geocodeAsync(`${selectedLocation}, Ghana`);
-        if (results.length > 0) {
-          updateServiceField('latitude', results[0].latitude);
-          updateServiceField('longitude', results[0].longitude);
-        }
-      } catch (error) {
-        console.warn('Geocoding failed for', selectedLocation, error);
-      } finally {
-        setIsGeocoding(false);
-      }
-    };
-    geocodeRegion();
+    //const geocodeRegion = async () => {
+    //  setIsGeocoding(true);
+    //  try {
+    //    const results = await Location.geocodeAsync(`${selectedLocation}, Ghana`);
+    //    if (results.length > 0) {
+    //      updateServiceField('latitude', results[0].latitude);
+    //      updateServiceField('longitude', results[0].longitude);
+     //   }
+    //  } catch (error) {
+     ////   console.warn('Geocoding failed for', selectedLocation, error);
+     // } finally {
+     //   setIsGeocoding(false);
+     // }
+   // };
+    //geocodeRegion();
   }, [selectedLocation]);
- */}
+ 
   const handlePhoneChange = (text: string) => {
     updateServiceField('number', text);
   };
@@ -239,7 +232,7 @@ export const LocationStep = () => {
           />
         </View>
         <Text style={[styles.helperText, { color: colors.textSecondary }]}>
-          Helps customers find you when GPS isn't precise enough.
+          Help customers find you when GPS isn't precise enough.
         </Text>
 
       </View>

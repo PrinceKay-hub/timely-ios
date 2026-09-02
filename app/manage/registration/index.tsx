@@ -76,8 +76,9 @@ export default function ServiceRegistrationScreen() {
         return currentService.description.length >= 50;
       case 4:
         return (
-          currentService.location.trim().length > 0 &&
-          currentService.number.trim().length > 0
+          currentService.location != 'Select Location' &&
+          currentService.number.trim().length > 12 &&
+          currentService.landmark.trim().length > 0
           //currentService.latitude != null && currentService.longitude != null &&
          // (currentService.latitude !== 0 || currentService.longitude !== 0)
         );
@@ -139,9 +140,7 @@ export default function ServiceRegistrationScreen() {
           <View style={[styles.progressFill, { width: `${(step / 7) * 100}%` }]} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.formContent}>
-          <ServiceRegistrationForm userId={effectiveUserId!} />
-        </ScrollView>
+        <ServiceRegistrationForm userId={effectiveUserId!} />
 
         <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border || '#eee' }]}>
           <TouchableOpacity

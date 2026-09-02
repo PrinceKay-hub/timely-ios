@@ -1,4 +1,5 @@
 import GalleryWidget from '@/components/Gallerywidget';
+import OpenStatusBadge from '@/components/Openstatusbadge';
 import { PortfolioTabContent } from '@/components/portfolio/PortfolioTab';
 import { Snackbar } from '@/components/Snackbar';
 import WorkingHoursDisplay from '@/components/WorkingHoursDisplay';
@@ -6,6 +7,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { useAuthStore } from '@/stores/auth';
 import { useChatStore } from '@/stores/chat';
 import { useFavoriteStore } from '@/stores/favorite';
+import { formatPresenceLabel, usePresenceSubscription } from '@/stores/presence';
 import { useReviewStore } from '@/stores/reviewService';
 import { useServiceDataStore } from '@/stores/serviceData';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +41,9 @@ export default function DetailScreen() {
   const { currentService, isLoading, error, fetchServiceById } = useServiceDataStore();
   const { theme } = useTheme();
   const colors = theme.colors;
+
+  const presence = usePresenceSubscription(currentService?.providerId);
+  const presenceLabel = formatPresenceLabel(presence);
 
   // Create dynamic styles based on the theme
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -342,19 +347,37 @@ export default function DetailScreen() {
         <View style={styles.rowBetween}>
           <Text style={[styles.name, { color: colors.text }]}>{currentService?.name}</Text>
         </View>
-        <View style={[styles.categoryChip, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
+        <View style={[styles.badge]}>
+          <OpenStatusBadge service={{
+          workingDays: currentService.workingDays,
+          workingHours: currentService.workingHours,
+        }}/>
+        </View>
+        <View style={[styles.rowBetween]}>
+          <View style={[styles.categoryChip, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
           <Ionicons name="cut" size={16} color={colors.primary} />
           <Text style={[styles.categoryText, { color: colors.primary }]}>{currentService?.category}</Text>
         </View>
+        <View>
+        </View>
+        {!!presenceLabel && (
+          <View style={[styles.lastSeen]}>
+            <Text style={{ color: presence?.state === 'online' ? '#22c55e' : theme.colors.textSecondary }}>
+            {presenceLabel}
+          </Text>
+          </View>
+        )}
+        </View>
+        
         <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={20} color={colors.primary} />
+          <Text style={{ fontSize: 14 }}>📍</Text>
           <Text style={[styles.locationText, { color: colors.textSecondary }]}>
             {currentService?.district}
             {currentService.landmark ? `, ${currentService.landmark}` : ''}
           </Text>
         </View>
         <View style={styles.ratingRow}>
-          <Ionicons name="star" size={16} color="gold" />
+          <Text style={{ fontSize: 14 }}>⭐</Text>
           <Text style={[styles.ratingText, { color: colors.text }]}>{currentService?.rating.toFixed(1)}</Text>
           <Text style={[styles.reviewCount, { color: colors.textSecondary }]}>
             ({currentService?.totalReviews} reviews)
@@ -742,4 +765,15 @@ const createStyles = (colors: any) =>
       alignItems: 'center',
       padding: 20,
     },
+    badge: {
+      marginTop: 12
+    },
+    lastSeen: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginTop: 12,
+    }
   });

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useServiceRegistrationStore } from '@/stores/serviceRegistrationStore';
 import { BasicInfoStep } from './steps/BasicInfoStep';
 import { CategoryStep } from './steps/CategoryStep';
@@ -47,10 +47,18 @@ export const ServiceRegistrationForm: React.FC<Props> = ({ userId }) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+  <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  >
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       {renderStep()}
     </ScrollView>
-  );
+  </KeyboardAvoidingView>
+);
 };
 
 // ─── Style factory ──────────────────────────────────────────────────────────

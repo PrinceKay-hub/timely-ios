@@ -39,7 +39,7 @@ interface MessageButtonProps {
 //     serviceId={service.id}
 //     serviceName={service.name}
 //   />
-export function MessageButton({
+export function MessageButto({
   otherUserId,
   otherUserName,
   otherUserPhoto,
