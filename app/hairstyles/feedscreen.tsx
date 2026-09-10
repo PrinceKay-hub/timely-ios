@@ -16,6 +16,7 @@ import { fetchAllHairstyles } from '@/services/hairstyleService';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_GAP = 8;
@@ -189,14 +190,14 @@ const CollectionsExplorer: React.FC = () => {
         <View style={[styles.header, { backgroundColor: colors.primary }]}>
           {mode !== 'collections' && (
             <TouchableOpacity onPress={goBack} hitSlop={12} style={[styles.backButton, { backgroundColor: '#fff' }]}>
-            <Ionicons name="arrow-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
+              <Ionicons name="arrow-back" size={24} color={colors.primary} />
+            </TouchableOpacity>
 
           )}
-          {mode === 'collections' && 
-          <TouchableOpacity onPress={handleBack} style={[styles.backButton, { backgroundColor: '#fff' }]}>
-            <Ionicons name="arrow-back" size={24} color={colors.primary} />
-          </TouchableOpacity>}
+          {mode === 'collections' &&
+            <TouchableOpacity onPress={handleBack} style={[styles.backButton, { backgroundColor: '#fff' }]}>
+              <Ionicons name="arrow-back" size={24} color={colors.primary} />
+            </TouchableOpacity>}
           <Text style={[styles.headerTitle, { color: colors.text }]}>{headerTitle}</Text>
         </View>
       )}
@@ -277,13 +278,22 @@ const CollectionsExplorer: React.FC = () => {
             }}
             renderItem={({ item }) => (
               <View style={{ width: SCREEN_WIDTH }}>
-                <Image
-                  source={{ uri: item.images.full }}
-                  placeholder={{ uri: item.images.card }}
-                  style={styles.viewerImage}
-                  contentFit="contain"
-                  transition={200}
-                />
+                <ReactNativeZoomableView
+                  maxZoom={4}
+                  minZoom={1}
+                  zoomStep={0.5}
+                  initialZoom={1}
+                  bindToBorders
+                  style={styles.zoomable}
+                >
+                  <Image
+                    source={{ uri: item.images.full }}
+                    placeholder={{ uri: item.images.card }}
+                    style={styles.viewerImage}
+                    contentFit="contain"
+                    transition={200}
+                  />
+                </ReactNativeZoomableView>
               </View>
             )}
           />
@@ -379,6 +389,10 @@ const createStyles = (colors: any) =>
       borderRadius: 20,
       padding: 8,
       marginRight: 16,
+    },
+    zoomable: {
+      width: SCREEN_WIDTH,
+      height: '100%',
     },
   });
 

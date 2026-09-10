@@ -16,7 +16,7 @@ import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-vi
 import { useTheme } from '@/providers/ThemeProvider';
 import { Image } from 'expo-image';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 100;
 
 interface GalleryWidgetProps {

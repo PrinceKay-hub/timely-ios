@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { ReactNativeZoomableView } from '@openspacelabs/react-native-zoomable-view';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -16,6 +17,8 @@ interface Props {
   uri: string | null;
   onClose: () => void;
 }
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export function ImageViewer({ visible, uri, onClose }: Props) {
   const insets = useSafeAreaInsets();
@@ -60,7 +63,16 @@ export function ImageViewer({ visible, uri, onClose }: Props) {
 
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.imageWrap, imageStyle]}>
-            <Image source={{ uri }} style={styles.image} contentFit="contain" />
+            <ReactNativeZoomableView
+              maxZoom={4}
+              minZoom={1}
+              zoomStep={0.5}
+              initialZoom={1}
+              bindToBorders
+              style={styles.zoomable}
+            >
+              <Image source={{ uri }} style={styles.image} contentFit="contain" />
+            </ReactNativeZoomableView>
           </Animated.View>
         </GestureDetector>
 
@@ -90,5 +102,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  zoomable: {
+    width: SCREEN_WIDTH,
+    height: '100%',
   },
 });

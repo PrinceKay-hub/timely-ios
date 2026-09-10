@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { getFirestore, collection, query, where, orderBy, onSnapshot, serverTimestamp, addDoc, } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, serverTimestamp, addDoc, doc } from "firebase/firestore";
 import { app } from "@/firebase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useRouter } from "expo-router";
@@ -20,7 +20,6 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from "@expo/vector-icons";
 
-
 const functions = getFunctions(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
@@ -31,13 +30,15 @@ const TILE_SIZE = (width - 48) / 3;
 interface HairstyleOption {
   id: string;
   name: string;
-  targetHairstyle: string; // replaces prompt
-  hairColor: string;
+  targetHairstyle?: string;
+  hairColor?: string;
   category: string;
   imageUrl: string;
-  gender: "male" | "female";
-  type: "hairstyle" | "haircut";
-  order: number;
+  gender?: "male" | "female";
+  type?: "hairstyle" | "haircut";
+  order?: number;
+  isCustom?: boolean;
+  base64?: string;
 }
 
 export default function VirtualTryOnScreen() {
@@ -48,7 +49,11 @@ export default function VirtualTryOnScreen() {
 
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  
+  // Custom hairstyle base64 & option state
   const [selectedStyle, setSelectedStyle] = useState<HairstyleOption | null>(null);
+  const [customHairBase64, setCustomHairBase64] = useState<string | null>(null);
+
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -93,14 +98,13 @@ export default function VirtualTryOnScreen() {
     return unsub;
   }, [gender, styleType]);
 
-  // Derive categories from fetched styles
   const categories = ["All", ...Array.from(new Set(hairstyles.map((h) => h.category)))];
 
   const filteredStyles = activeCategory === "All"
     ? hairstyles
     : hairstyles.filter((h) => h.category === activeCategory);
 
-  const pickImage = async (source: "camera" | "gallery") => {
+  const pickUserImage = async (source: "camera" | "gallery") => {
     if (source === "camera") {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
@@ -118,8 +122,7 @@ export default function VirtualTryOnScreen() {
         setResultUrl(null);
       }
     } else {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Permission needed", "Please allow photo access.");
         return;
@@ -138,57 +141,65 @@ export default function VirtualTryOnScreen() {
     }
   };
 
+  const pickCustomHairstyleImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Please allow photo access.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+      base64: true,
+      allowsEditing: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const customOption: HairstyleOption = {
+        id: "custom_upload",
+        name: "Custom Reference",
+        category: "Custom",
+        imageUrl: result.assets[0].uri,
+        isCustom: true,
+        base64: result.assets[0].base64 ?? undefined,
+      };
+      setCustomHairBase64(result.assets[0].base64 ?? null);
+      setSelectedStyle(customOption);
+      setResultUrl(null);
+    }
+  };
+
   const showImageSourceSheet = () => {
     Alert.alert(
       "Upload your photo",
       "Choose a source",
       [
-        {
-          text: "📷 Take a photo",
-          onPress: () => pickImage("camera"),
-        },
-        {
-          text: "🖼️ Choose from gallery",
-          onPress: () => pickImage("gallery"),
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "📷 Take a photo", onPress: () => pickUserImage("camera") },
+        { text: "🖼️ Choose from gallery", onPress: () => pickUserImage("gallery") },
+        { text: "Cancel", style: "cancel" },
       ],
-      { cancelable: true },
+      { cancelable: true }
     );
   };
 
   const saveFalImageToStorage = async (
     falUrl: string,
-    retries = 3,
+    retries = 3
   ): Promise<string> => {
     const uid = getAuth(app).currentUser?.uid;
     if (!uid) throw new Error("Not authenticated");
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`Fetching fal.ai image, attempt ${attempt}...`);
-        const response = await fetch(falUrl, {
-          headers: { "Cache-Control": "no-cache" },
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        const response = await fetch(falUrl, { headers: { "Cache-Control": "no-cache" } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const blob = await response.blob();
         const timestamp = Date.now();
-        const storageRef = ref(
-          storage,
-          `tryOnResults/${uid}/${timestamp}.jpg`,
-        );
+        const storageRef = ref(storage, `tryOnResults/${uid}/${timestamp}.jpg`);
         await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-        const permanentUrl = await getDownloadURL(storageRef);
-        return permanentUrl;
+        return await getDownloadURL(storageRef);
       } catch (err) {
-        console.warn(`Attempt ${attempt} failed:`, err);
         if (attempt === retries) throw err;
-        // Wait before retrying: 2s, 4s, 6s
         await new Promise((r) => setTimeout(r, attempt * 2000));
       }
     }
@@ -196,47 +207,123 @@ export default function VirtualTryOnScreen() {
   };
 
   const runTryOn = async () => {
-    if (!imageBase64 || !selectedStyle) return;
-    if (limitReached) {
-      Alert.alert(
-        "Daily Limit Reached",
-        "You've used all 3 free try-ons for today. Come back tomorrow! 💇‍♀️",
-      );
+    // 1. Guard check for required base image and style selection
+    if (!imageBase64 || !selectedStyle) {
+      Alert.alert("Missing Information", "Please select both a base photo and a hairstyle.");
       return;
     }
+
+    const auth = getAuth(app);
+    const uid = auth.currentUser?.uid;
+
+    if (!uid) {
+      Alert.alert("Authentication Error", "You must be logged in to try on hairstyles.");
+      return;
+    }
+
     setLoading(true);
+
     try {
-      const fn = httpsCallable(functions, "virtualHairstyleTryOn");
-      const response = await fn({
-        imageBase64,
-        hairstylePrompt: selectedStyle.targetHairstyle,
-        hairColor: selectedStyle.hairColor,
+      // 2. Resolve reference hairstyle base64 (Custom upload vs. Preset URL)
+      let hairstyleBase64 = customHairBase64;
+
+      if (!selectedStyle.isCustom) {
+        try {
+          const response = await fetch(selectedStyle.imageUrl);
+          const blob = await response.blob();
+          hairstyleBase64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (err) {
+          setLoading(false);
+          Alert.alert("Error", "Could not process selected hairstyle image.");
+          return;
+        }
+      }
+
+      if (!hairstyleBase64) {
+        setLoading(false);
+        Alert.alert("Error", "Hairstyle image data is missing.");
+        return;
+      }
+
+      // 3. Call Cloud Function to submit job to fal.ai Queue
+      const virtualHairstyleTryOn = httpsCallable(functions, "virtualHairstyleFalSegmindTryOn");
+
+      const response = await virtualHairstyleTryOn({
+        userImageBase64: imageBase64,
+        hairstyleImageBase64: hairstyleBase64,
+        styleName: selectedStyle.name,
+        category: selectedStyle.category,
       });
-      const falUrl = (response.data as any).outputImageUrl;
 
-      // Transfer phase — separate state so UI can show different message
-      setLoading(false);
-      setTransferring(true);
-      setSaved(false);
-      const permanentUrl = await saveFalImageToStorage(falUrl);
-      setResultUrl(permanentUrl);
+      const data = response.data as {
+        success: boolean;
+        status: string;
+        requestId: string;
+        remainingToday?: number;
+      };
+
+      if (!data?.success || !data?.requestId) {
+        throw new Error("Failed to queue try-on job. Please try again.");
+      }
+
+      const targetRequestId = data.requestId;
+
+      // 4. Listen directly to pendingTryOns to catch processing errors if fal.ai fails
+      const pendingRef = doc(db, "users", uid, "pendingTryOns", targetRequestId);
+      const unsubscribePending = onSnapshot(pendingRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const pendingData = docSnap.data();
+          if (pendingData?.status === "FAILED") {
+            unsubscribePending();
+            unsubscribeHistory();
+            setLoading(false);
+            Alert.alert("Try-On Failed", pendingData?.error || "Failed to process hairstyle.");
+          }
+        }
+      });
+
+      // 5. Listen to user's tryOnHistory filtered specifically for this requestId
+      const historyQuery = query(
+        collection(db, "users", uid, "tryOnHistory"),
+        where("requestId", "==", targetRequestId)
+      );
+
+      const unsubscribeHistory = onSnapshot(
+        historyQuery,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const resultDoc = snapshot.docs[0].data();
+            const imageUrl = resultDoc.imageUrl;
+
+            if (imageUrl) {
+              setResultUrl(imageUrl);
+              setLoading(false);
+              setTransferring(false);
+
+              // Clean up active listeners once result is retrieved
+              unsubscribePending();
+              unsubscribeHistory();
+            }
+          }
+        },
+        (error) => {
+          console.error("Firestore history listener error:", error);
+          unsubscribePending();
+          unsubscribeHistory();
+          setLoading(false);
+          Alert.alert("Error", "Failed to retrieve generated hairstyle result.");
+        }
+      );
+
     } catch (e: any) {
-      // Firebase httpsCallable wraps errors — extract correctly
-      const message =
-        e?.details?.message ||   // fal.ai detail from HttpsError
-        e?.message ||             // Firebase error message
-        "Try-on failed. Please try again.";
-
-      console.error("runTryOn error:", JSON.stringify({
-        code: e?.code,
-        message: e?.message,
-        details: e?.details,
-      }));
-
-      Alert.alert("Error", message);
-    } finally {
       setLoading(false);
-      setTransferring(false);
+      const message = e?.details?.message || e?.message || "Try-on failed. Please try again.";
+      Alert.alert("Error", message);
     }
   };
 
@@ -248,14 +335,10 @@ export default function VirtualTryOnScreen() {
       await addDoc(collection(db, "users", uid, "tryOnHistory"), {
         imageUrl: resultUrl,
         styleName: selectedStyle.name,
-        targetHairstyle: selectedStyle.targetHairstyle,
-        hairColor: selectedStyle.hairColor,
         category: selectedStyle.category,
-        gender: selectedStyle.gender,
-        type: selectedStyle.type,
         savedAt: serverTimestamp(),
       });
-      setSaved(true); // ✅ mark as saved
+      setSaved(true);
       Alert.alert("Saved! ✅", "Your look has been saved to your history.");
     } catch (e: any) {
       Alert.alert("Error", "Failed to save. Please try again.");
@@ -278,30 +361,18 @@ export default function VirtualTryOnScreen() {
         ref={scrollViewRef}
         contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
       >
-
-        {/* ── Usage counter banner ── */}
-        <View style={[
-          styles.usageBanner,
-          limitReached && styles.usageBannerExhausted,
-        ]}>
-          {limitReached ? (
-            <Text style={styles.usageTextExhausted}>
-              ⛔ Daily limit reached — resets at midnight
-            </Text>
-          ) : (
-            <Text style={styles.usageText}>
-              ✨ {remaining} of 3 free try-ons remaining today
-            </Text>
-          )}
-          {/* Pill indicators */}
+        {/* Usage banner */}
+        <View style={[styles.usageBanner, limitReached && styles.usageBannerExhausted]}>
+          <Text style={limitReached ? styles.usageTextExhausted : styles.usageText}>
+            {limitReached
+              ? "⛔ Daily limit reached — resets at midnight"
+              : `✨ ${remaining} of 3 free try-ons remaining today`}
+          </Text>
           <View style={styles.usagePills}>
             {[1, 2, 3].map((i) => (
               <View
                 key={i}
-                style={[
-                  styles.pill,
-                  i <= usedToday ? styles.pillUsed : styles.pillAvailable,
-                ]}
+                style={[styles.pill, i <= usedToday ? styles.pillUsed : styles.pillAvailable]}
               />
             ))}
           </View>
@@ -313,177 +384,108 @@ export default function VirtualTryOnScreen() {
             style={[styles.genderBtn, gender === "female" && [styles.genderBtnActive, { backgroundColor: colors.primary }]]}
             onPress={() => setGender("female")}
           >
-            <Text style={[styles.genderText, { color: gender === "female" ? '#fff' : colors.textSecondary }]}>
-              👩 Women
-            </Text>
+            <Text style={[styles.genderText, { color: gender === "female" ? '#fff' : colors.textSecondary }]}>👩 Women</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.genderBtn, gender === "male" && [styles.genderBtnActive, { backgroundColor: colors.primary }]]}
             onPress={() => setGender("male")}
           >
-            <Text style={[styles.genderText, { color: gender === "male" ? '#fff' : colors.textSecondary }]}>
-              👨 Men
-            </Text>
+            <Text style={[styles.genderText, { color: gender === "male" ? '#fff' : colors.textSecondary }]}>👨 Men</Text>
           </TouchableOpacity>
         </View>
 
         {/* Style Type Toggle */}
         <View style={[styles.typeToggle, { backgroundColor: colors.surface }]}>
           <TouchableOpacity
-            style={[
-              styles.typeBtn,
-              styleType === "hairstyle" && [
-                styles.typeBtnActive,
-                {
-                  backgroundColor: colors.card || colors.background,
-                  shadowColor: '#000',
-                },
-              ],
-            ]}
+            style={[styles.typeBtn, styleType === "hairstyle" && [styles.typeBtnActive, { backgroundColor: colors.card || colors.background }]]}
             onPress={() => setStyleType("hairstyle")}
           >
-            <Text style={[
-              styles.typeBtnText,
-              { color: styleType === "hairstyle" ? colors.text : colors.textSecondary },
-            ]}>
-              💇 Hairstyles
-            </Text>
+            <Text style={[styles.typeBtnText, { color: styleType === "hairstyle" ? colors.text : colors.textSecondary }]}>💇 Hairstyles</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.typeBtn,
-              styleType === "haircut" && [
-                styles.typeBtnActive,
-                {
-                  backgroundColor: colors.card || colors.background,
-                  shadowColor: '#000',
-                },
-              ],
-            ]}
+            style={[styles.typeBtn, styleType === "haircut" && [styles.typeBtnActive, { backgroundColor: colors.card || colors.background }]]}
             onPress={() => setStyleType("haircut")}
           >
-            <Text style={[
-              styles.typeBtnText,
-              { color: styleType === "haircut" ? colors.text : colors.textSecondary },
-            ]}>
-              ✂️ Haircuts
-            </Text>
+            <Text style={[styles.typeBtnText, { color: styleType === "haircut" ? colors.text : colors.textSecondary }]}>✂️ Haircuts</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Step 1 — Upload */}
+        {/* Step 1 — Upload Face Photo */}
         <Text style={[styles.stepLabel, { color: colors.text }]}>1. Upload your photo</Text>
-        <TouchableOpacity
-          style={styles.imagePicker}
-          onPress={showImageSourceSheet} 
-        >
+        <TouchableOpacity style={styles.imagePicker} onPress={showImageSourceSheet}>
           {imageUri ? (
-            <Image 
-            source={{ uri: imageUri }} 
-            style={styles.previewImage}
-            contentFit="cover"
-            transition={200}
-            placeholder={colors.surface || '#f3f4f6'}
-            />
+            <Image source={{ uri: imageUri }} style={styles.previewImage} contentFit="cover" />
           ) : (
             <View style={styles.placeholderContent}>
               <Text style={styles.placeholderIcon}>📷</Text>
-              <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>
-                Tap to upload
-              </Text>
-              <Text style={[styles.placeholderSub, { color: colors.textSecondary }]}>
-                Camera or gallery
-              </Text>
+              <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>Tap to upload face photo</Text>
             </View>
           )}
         </TouchableOpacity>
 
         {/* Step 2 — Pick style */}
-        <Text style={[styles.stepLabel, { color: colors.text }]}>2. Pick a style</Text>
+        <Text style={[styles.stepLabel, { color: colors.text }]}>2. Select target hairstyle</Text>
 
-        {/* Category tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabsRow}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow}>
           {categories.map((cat) => (
             <TouchableOpacity
               key={cat}
-              style={[
-                styles.tab,
-                {
-                  backgroundColor: activeCategory === cat ? colors.primary : colors.surface,
-                },
-              ]}
+              style={[styles.tab, { backgroundColor: activeCategory === cat ? colors.primary : colors.surface }]}
               onPress={() => setActiveCategory(cat)}
             >
-              <Text style={[
-                styles.tabText,
-                { color: activeCategory === cat ? '#fff' : colors.textSecondary },
-              ]}>
-                {cat}
-              </Text>
+              <Text style={[styles.tabText, { color: activeCategory === cat ? '#fff' : colors.textSecondary }]}>{cat}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
         {/* Hairstyle grid */}
-        {loadingStyles ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading styles...</Text>
-          </View>
-        ) : filteredStyles.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No styles available yet.</Text>
-          </View>
-        ) : (
-          <View style={styles.grid}>
-            {filteredStyles.map((style) => {
-              const isSelected = selectedStyle?.id === style.id;
-              return (
-                <TouchableOpacity
-                  key={style.id}
-                  style={[
-                    styles.tile,
-                    isSelected && [
-                      styles.tileSelected,
-                      {
-                        borderColor: colors.primary,
-                        shadowColor: colors.primary,
-                      },
-                    ],
-                  ]}
-                  onPress={() => {
-                    setSelectedStyle(style);
-                    setResultUrl(null);
-                  }}
-                >
-                  <Image 
-                  source={{ uri: style.imageUrl }} 
-                  style={styles.tileImage} 
-                  contentFit="cover"
-                  transition={200}
-                  placeholder={colors.surface || '#f3f4f6'}
-                  />
-                  {isSelected && (
-                    <View style={[styles.tileOverlay, { backgroundColor: 'rgba(108,60,225,0.35)' }]}>
-                      <Text style={styles.checkIcon}>✓</Text>
-                    </View>
-                  )}
-                  <View style={styles.tileLabel}>
-                    <Text style={styles.tileLabelText} numberOfLines={1}>
-                      {style.name}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
+        <View style={styles.grid}>
+          {/* Custom Reference Image Upload Tile */}
+          <TouchableOpacity
+            style={[
+              styles.tile,
+              styles.customUploadTile,
+              selectedStyle?.isCustom && [styles.tileSelected, { borderColor: colors.primary }],
+            ]}
+            onPress={pickCustomHairstyleImage}
+          >
+            {selectedStyle?.isCustom ? (
+              <Image source={{ uri: selectedStyle.imageUrl }} style={styles.tileImage} contentFit="cover" />
+            ) : (
+              <View style={styles.customTileContent}>
+                <Ionicons name="add-circle-outline" size={32} color={colors.primary} />
+                <Text style={[styles.customTileText, { color: colors.primary }]}>Upload Custom Hairstyle</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-        {/* Selected style indicator */}
+          {/* Preset Styles */}
+          {filteredStyles.map((style) => {
+            const isSelected = selectedStyle?.id === style.id;
+            return (
+              <TouchableOpacity
+                key={style.id}
+                style={[styles.tile, isSelected && [styles.tileSelected, { borderColor: colors.primary }]]}
+                onPress={() => {
+                  setSelectedStyle(style);
+                  setCustomHairBase64(null);
+                  setResultUrl(null);
+                }}
+              >
+                <Image source={{ uri: style.imageUrl }} style={styles.tileImage} contentFit="cover" />
+                {isSelected && (
+                  <View style={[styles.tileOverlay, { backgroundColor: 'rgba(108,60,225,0.35)' }]}>
+                    <Text style={styles.checkIcon}>✓</Text>
+                  </View>
+                )}
+                <View style={styles.tileLabel}>
+                  <Text style={styles.tileLabelText} numberOfLines={1}>{style.name}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {selectedStyle && (
           <View style={[styles.selectedBanner, { backgroundColor: `${colors.primary}18` }]}>
             <Text style={[styles.selectedBannerText, { color: colors.primary }]}>
@@ -492,13 +494,9 @@ export default function VirtualTryOnScreen() {
           </View>
         )}
 
-        {/* Try On button */}
+        {/* Try On Button */}
         <TouchableOpacity
-          style={[
-            styles.button,
-            (!imageBase64 || !selectedStyle || loading ||
-              transferring || limitReached) && styles.buttonDisabled,
-          ]}
+          style={[styles.button, (!imageBase64 || !selectedStyle || loading || transferring || limitReached) && styles.buttonDisabled]}
           onPress={runTryOn}
           disabled={!imageBase64 || !selectedStyle || loading || transferring || limitReached}
         >
@@ -506,443 +504,96 @@ export default function VirtualTryOnScreen() {
             <View style={styles.loadingRow}>
               <ActivityIndicator color="#fff" />
               <Text style={[styles.buttonText, { marginLeft: 8 }]}>
-                {loading ? "Generating..." : "Saving result..."}
+                {loading ? "Swapping hair..." : "Saving result..."}
               </Text>
             </View>
           ) : (
-            <Text style={styles.buttonText}>
-              {limitReached ? "⛔ Limit Reached" : "✨ Try This Style"}
-            </Text>
+            <Text style={styles.buttonText}>{limitReached ? "⛔ Limit Reached" : "✨ Try This Style"}</Text>
           )}
         </TouchableOpacity>
 
-        {/* Before / After result */}
+        {/* Result view */}
         {resultUrl && (
-          <View
-            onLayout={(event) => {
-              resultSectionY.current = event.nativeEvent.layout.y;
-              scrollViewRef.current?.scrollTo({
-                y: resultSectionY.current,
-                animated: true,
-              });
-            }}
-            style={styles.resultSection}
-          >
-            <Text style={[styles.resultTitle, { color: colors.text }]}>
-              Your New Look ✨
-            </Text>
-            <Text style={[styles.resultSubtitle, { color: colors.primary }]}>
-              {selectedStyle?.name}
-            </Text>
-
+          <View style={styles.resultSection}>
+            <Text style={[styles.resultTitle, { color: colors.text }]}>Your New Look ✨</Text>
             <View style={styles.beforeAfterItem}>
-              <Text style={[styles.beforeAfterLabel, { color: colors.textSecondary }]}>
-                After
-              </Text>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setFullScreenVisible(true)}
-                style={styles.beforeAfterImage}
-              >
-                <Image
-                  source={{ uri: resultUrl }}
-                  style={StyleSheet.absoluteFill}
-                  contentFit="cover"
-                  transition={200}
-                  placeholder={colors.surface || '#f3f4f6'}
-                  onLoad={() => console.log("After image loaded:", resultUrl)}
-                  onError={(e) => console.error("After image error:", e.error, resultUrl)}
-                />
-                <View style={styles.tapToViewOverlay}>
-                  <Text style={styles.tapToViewText}>Tap to view</Text>
-                </View>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => setFullScreenVisible(true)} style={styles.beforeAfterImage}>
+                <Image source={{ uri: resultUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
               </TouchableOpacity>
             </View>
 
-            {/* Action buttons row */}
             <View style={styles.resultActionsRow}>
-              {/* Save button */}
               <TouchableOpacity
-                style={[
-                  styles.resultActionBtn,
-                  {
-                    backgroundColor: saved
-                      ? colors.surface
-                      : colors.surface,
-                    borderColor: saved ? "#22c55e" : colors.border,
-                    borderWidth: 1,
-                    opacity: saved ? 0.7 : 1,
-                  },
-                ]}
+                style={[styles.resultActionBtn, { backgroundColor: colors.surface, borderColor: saved ? "#22c55e" : colors.border, borderWidth: 1 }]}
                 onPress={saved ? undefined : saveResult}
                 disabled={saving || saved}
               >
-                {saving ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.resultActionBtnText,
-                      { color: saved ? "#22c55e" : colors.primary },
-                    ]}
-                  >
-                    {saved ? "✅ Saved" : "🔖 Save Look"}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              {/* Book button 
-              <TouchableOpacity
-                style={[styles.resultActionBtn, { backgroundColor: colors.primary }]}
-              >
-                <Text style={[styles.resultActionBtnText, { color: "#fff" }]}>
-                  💅 Book Style
+                <Text style={[styles.resultActionBtnText, { color: saved ? "#22c55e" : colors.primary }]}>
+                  {saved ? "✅ Saved" : "🔖 Save Look"}
                 </Text>
               </TouchableOpacity>
-              */}
             </View>
-
-            <TouchableOpacity
-              style={styles.tryAnotherBtn}
-              onPress={() => {
-                setResultUrl(null);
-                setSelectedStyle(null);
-                scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-              }}
-            >
-              <Text style={[styles.tryAnotherText, { color: colors.primary }]}>
-                Try another style
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
-      {/* Full Screen Result Modal */}
-      <Modal
-        visible={fullScreenVisible}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setFullScreenVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setFullScreenVisible(false)}
-              style={styles.modalCloseBtn}
-            >
-              <Text style={styles.modalCloseText}>✕</Text>
-            </TouchableOpacity>
-            <View style={styles.modalTitleBlock}>
-              <Text style={styles.modalTitle}>{selectedStyle?.name}</Text>
-              <Text style={styles.modalSubtitle}>{selectedStyle?.category}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.shareBtn}
-              onPress={async () => {
-                try {
-                  await Share.share({
-                    message: "Check out my new hairstyle from Timely! 💇‍♀️",
-                    url: resultUrl ?? "",
-                  });
-                } catch (e) {
-                  console.error("Share error:", e);
-                }
-              }}
-            >
-              <Text style={styles.shareBtnText}>Share</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Full image */}
-          <Image
-            source={{ uri: resultUrl ?? "" }}
-            style={styles.fullImage}
-            contentFit="cover"
-            transition={200}
-            placeholder={colors.surface || '#f3f4f6'}
-          />
-
-          {/* Footer */}
-          <View style={styles.modalFooter}>
-            <View style={styles.resultActionsRow}>
-              <TouchableOpacity
-                style={[styles.resultActionBtn, {
-                  backgroundColor: "rgba(255,255,255,0.15)",
-                  borderColor: "rgba(255,255,255,0.3)",
-                  borderWidth: 1,
-                }]}
-                onPress={() => {
-                  setFullScreenVisible(false);
-                  saveResult();
-                }}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={[styles.resultActionBtnText, { color: "#fff" }]}>
-                    🔖 Save Look
-                  </Text>
-                )}
-              </TouchableOpacity>
-              {/* 
-              <TouchableOpacity
-                style={[styles.resultActionBtn, { backgroundColor: colors.primary }]}
-                onPress={() => setFullScreenVisible(false)}
-              >
-                <Text style={[styles.resultActionBtnText, { color: "#fff" }]}>
-                  💅 Book Style
-                </Text>
-              </TouchableOpacity>
-              */}
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
 
-// ─── Style factory ──────────────────────────────────────────────────────────
 const createStyles = (colors: any) =>
   StyleSheet.create({
-    div: { paddingBottom: 200, flexGrow: 1,  },
+    div: { paddingBottom: 200, flexGrow: 1 },
     container: { padding: 16, paddingBottom: 40, flexGrow: 1 },
-    header: {
-      paddingTop: 60,
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      borderBottomLeftRadius: 20,
-      borderBottomRightRadius: 20,
-    },
-    backButton: {
-      borderRadius: 20,
-      padding: 8,
-    },
-    headerTitle: {
-      flex: 1,
-      fontSize: 17,
-      fontWeight: '700',
-      color: '#fff',
-      textAlign: 'center',
-    },
-
-    genderToggle: {
-      flexDirection: "row",
-      borderRadius: 12,
-      padding: 4,
-      marginBottom: 10,
-    },
-    genderBtn: {
-      flex: 1,
-      paddingVertical: 10,
-      alignItems: "center",
-      borderRadius: 10,
-    },
+    header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    backButton: { borderRadius: 20, padding: 8 },
+    headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#fff', textAlign: 'center' },
+    genderToggle: { flexDirection: "row", borderRadius: 12, padding: 4, marginBottom: 10 },
+    genderBtn: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10 },
     genderBtnActive: { backgroundColor: colors.primary },
     genderText: { fontWeight: "600", fontSize: 14 },
-
-    typeToggle: {
-      flexDirection: "row",
-      borderRadius: 12,
-      padding: 4,
-      marginBottom: 16,
-    },
-    typeBtn: {
-      flex: 1,
-      paddingVertical: 10,
-      alignItems: "center",
-      borderRadius: 10,
-    },
-    typeBtnActive: {
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-    },
+    typeToggle: { flexDirection: "row", borderRadius: 12, padding: 4, marginBottom: 16 },
+    typeBtn: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10 },
+    typeBtnActive: { elevation: 2 },
     typeBtnText: { fontWeight: "600", fontSize: 14 },
-
     stepLabel: { fontSize: 15, fontWeight: "700", marginBottom: 10, marginTop: 8 },
-    imagePicker: {
-      height: 200,
-      borderRadius: 16,
-      borderWidth: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      overflow: "hidden",
-      marginBottom: 8,
-    },
+    imagePicker: { height: 200, borderRadius: 16, borderWidth: 1, justifyContent: "center", alignItems: "center", overflow: "hidden", marginBottom: 8 },
     previewImage: { width: "100%", height: "100%" },
+    placeholderContent: { alignItems: "center", gap: 4 },
+    placeholderIcon: { fontSize: 36 },
     placeholderText: { fontSize: 15 },
-
     tabsRow: { marginBottom: 12 },
-    tab: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      marginRight: 8,
-    },
+    tab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
     tabText: { fontSize: 13, fontWeight: "500" },
-
-    loadingContainer: { alignItems: "center", paddingVertical: 40 },
-    loadingText: { marginTop: 10, fontSize: 13 },
-    emptyText: { fontSize: 13 },
-
     grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
-    tile: {
-      width: TILE_SIZE,
-      height: TILE_SIZE * 1.3,
-      borderRadius: 12,
-      overflow: "hidden",
-      position: "relative",
-    },
-    tileSelected: {
-      borderWidth: 3,
-      shadowOpacity: 0.4,
-      shadowRadius: 6,
-      elevation: 4,
-    },
+    tile: { width: TILE_SIZE, height: TILE_SIZE * 1.3, borderRadius: 12, overflow: "hidden", position: "relative" },
+    tileSelected: { borderWidth: 3 },
     tileImage: { width: "100%", height: "100%" },
-    tileOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      justifyContent: "center",
-      alignItems: "center",
-    },
+    customUploadTile: { borderWidth: 2, borderStyle: "dashed", borderColor: colors.primary, justifyContent: "center", alignItems: "center", backgroundColor: `${colors.primary}10` },
+    customTileContent: { alignItems: "center", padding: 8, gap: 4 },
+    customTileText: { fontSize: 11, fontWeight: "700", textAlign: "center" },
+    tileOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center" },
     checkIcon: { color: "#fff", fontSize: 28, fontWeight: "700" },
-    tileLabel: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: "rgba(0,0,0,0.5)",
-      padding: 4,
-    },
+    tileLabel: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.5)", padding: 4 },
     tileLabelText: { color: "#fff", fontSize: 11 },
-
-    selectedBanner: {
-      borderRadius: 8,
-      padding: 10,
-      marginTop: 8,
-      marginBottom: 4,
-    },
+    selectedBanner: { borderRadius: 8, padding: 10, marginTop: 8, marginBottom: 4 },
     selectedBannerText: { fontSize: 13 },
-
-    button: {
-      marginTop: 20,
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: "center",
-      backgroundColor: colors.primary,
-    },
+    button: { marginTop: 20, borderRadius: 12, paddingVertical: 14, alignItems: "center", backgroundColor: colors.primary },
     buttonDisabled: { opacity: 0.4 },
-    bookButton: { marginTop: 12 },
     buttonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
     loadingRow: { flexDirection: "row", alignItems: "center" },
-
     resultSection: { marginTop: 24 },
     resultTitle: { fontSize: 18, fontWeight: "700", marginBottom: 2 },
-    resultSubtitle: { fontSize: 13, marginBottom: 12 },
-    beforeAfterRow: { flexDirection: "row", gap: 10 },
     beforeAfterItem: { flex: 1, alignItems: "center" },
-    beforeAfterLabel: { fontSize: 12, marginBottom: 6 },
-    beforeAfterImage: {
-      width: "100%",
-      height: 180,
-      borderRadius: 12,
-      overflow: "hidden",  // ✅ needed for absoluteFill + borderRadius to work
-      backgroundColor: "#f0f0f0", // ✅ shows placeholder while loading
-    },
-
-    tryAnotherBtn: { alignItems: "center", marginTop: 16, paddingVertical: 8 },
-    tryAnotherText: { fontSize: 14, fontWeight: "500" },
-
-    usageBanner: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: "#f3eeff",
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 16,
-    },
-    usageBannerExhausted: {
-      backgroundColor: "#fff0f0",
-    },
-    usageText: {
-      color: "#6C3CE1",
-      fontSize: 13,
-      fontWeight: "600",
-      flex: 1,
-    },
-    usageTextExhausted: {
-      color: "#E14444",
-      fontSize: 13,
-      fontWeight: "600",
-      flex: 1,
-    },
-    usagePills: {
-      flexDirection: "row",
-      gap: 6,
-    },
-    pill: {
-      width: 24,
-      height: 8,
-      borderRadius: 4,
-    },
-    pillUsed: {
-      backgroundColor: "#ccc",
-    },
-    pillAvailable: {
-      backgroundColor: "#6C3CE1",
-    },
-
-    tapToViewOverlay: {
-      position: "absolute", bottom: 0, left: 0, right: 0,
-      backgroundColor: "rgba(0,0,0,0.4)",
-      paddingVertical: 4, borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
-      alignItems: "center",
-    },
-    tapToViewText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-    resultActionsRow: {
-      flexDirection: "row", gap: 10, marginTop: 16,
-    },
-    resultActionBtn: {
-      flex: 1, paddingVertical: 14,
-      borderRadius: 12, alignItems: "center",
-    },
+    beforeAfterImage: { width: "100%", height: 280, borderRadius: 12, overflow: "hidden" },
+    usageBanner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#f3eeff", borderRadius: 12, padding: 12, marginBottom: 16 },
+    usageBannerExhausted: { backgroundColor: "#fff0f0" },
+    usageText: { color: "#6C3CE1", fontSize: 13, fontWeight: "600", flex: 1 },
+    usageTextExhausted: { color: "#E14444", fontSize: 13, fontWeight: "600", flex: 1 },
+    usagePills: { flexDirection: "row", gap: 6 },
+    pill: { width: 24, height: 8, borderRadius: 4 },
+    pillUsed: { backgroundColor: "#ccc" },
+    pillAvailable: { backgroundColor: "#6C3CE1" },
+    resultActionsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+    resultActionBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center" },
     resultActionBtnText: { fontWeight: "600", fontSize: 14 },
-
-    modalContainer: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)" },
-    modalHeader: {
-      paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20,
-      flexDirection: "row", alignItems: "center",
-    },
-    modalCloseBtn: {
-      width: 36, height: 36, borderRadius: 18,
-      backgroundColor: "rgba(255,255,255,0.15)",
-      justifyContent: "center", alignItems: "center",
-    },
-    modalCloseText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-    modalTitleBlock: { flex: 1, alignItems: "center" },
-    modalTitle: { color: "#fff", fontSize: 16, fontWeight: "700" },
-    modalSubtitle: { color: "#aaa", fontSize: 12, marginTop: 2 },
-    shareBtn: {
-      paddingHorizontal: 14, paddingVertical: 8,
-      backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 20,
-    },
-    shareBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
-    fullImage: { flex: 1, width: "100%" },
-    modalFooter: { padding: 24, paddingBottom: 40 },
-
-    placeholderContent: {
-      alignItems: "center",
-      gap: 4,
-    },
-    placeholderIcon: { fontSize: 36 },
-    placeholderSub: { fontSize: 12, marginTop: 2 },
   });

@@ -1,150 +1,129 @@
-import React, { useMemo } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSharedValue } from 'react-native-reanimated';
+import { CarouselDots } from './CarouselDots';
+import {Carousel} from 'react-native-reanimated-carousel';
 import { useHomeStore } from '@/stores/home';
+import { useOffersStore } from '@/stores/offers';
+import { OfferModel } from '@/types/offer';
+import ShimmerBanner from './ShimmerBanner';
+import { Image } from 'expo-image';
 import { useTheme } from '@/providers/ThemeProvider';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '@/firebase';
 
 interface SpecialOffersCardProps {
   user: Record<string, any>;
 }
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CAROUSEL_WIDTH = SCREEN_WIDTH - 20;
+const ITEM_WIDTH = CAROUSEL_WIDTH * 0.95;
+const CAROUSEL_HEIGHT = 160;
+
 export const SpecialOffersCard: React.FC<SpecialOffersCardProps> = ({ user }) => {
   const navigation = useNavigation<any>();
   const { showSnackbar } = useHomeStore();
+  const { status, offers, subscribe, unsubscribe } = useOffersStore();
+  const progress = useSharedValue<number>(0);
+
   const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const colors = theme.colors;
-  const functions = getFunctions(app);
 
-  // Create dynamic styles based on the theme
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  useEffect(() => {
+    subscribe();
+    return () => unsubscribe();
+  }, [subscribe, unsubscribe]);
 
-  const handleRegister = async () => {
+  const actions: Record<string, () => void> = useMemo(
+    () => ({
+      registration: () => {
+        if (user?.isEmailVerified === false) {
+          showSnackbar('Email not verified. Go to Profile Screen', 'error');
+        } else {
+          navigation.navigate('manage/registration/index', { userId: user?.uid });
+        }
+      },
+      tryon: () => navigation.navigate('hairstyles/virtualtry'),
+      hairstyles: () => navigation.navigate('hairstyles/feedscreen'),
+    }),
+    [navigation, user, showSnackbar],
+  );
 
-    if (user?.isEmailVerified === false) {
-      showSnackbar('Email not verified. Go to Profile Screen', 'error');
-    } else {
-      navigation.navigate('manage/registration/index', { userId: user?.uid });
-    }
-  };
+  if (status === 'loading' || status === 'idle') return <ShimmerBanner />;
+  if (status === 'error') return null;
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.card, { backgroundColor: colors.primary }]}>
-        {/* Decorative background blob */}
-        <View style={styles.blobLarge} />
-        <View style={[styles.freeBadge, { backgroundColor: colors.error || '#ef4444' }]}>
-          <Text style={styles.freeBadgeText}>FREE!!!</Text>
-        </View>
-
-        {/* Content */}
-        <View style={styles.content}>
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>Are you a Service Provider?</Text>
-          </View>
-
-          <Text style={styles.headline}>
-            Register your service now for free!!!
-          </Text>
-
+      <Carousel
+        width={SCREEN_WIDTH}   
+        height={CAROUSEL_HEIGHT}
+        style={{ width: SCREEN_WIDTH, height: CAROUSEL_HEIGHT }}
+        data={offers}
+        loop={offers.length > 1}
+        autoPlay={offers.length > 1}
+        autoPlayInterval={10000}
+        scrollAnimationDuration={2500}
+        mode="parallax"
+        modeConfig={{
+          parallaxScrollingScale: 0.9,
+          parallaxScrollingOffset: 50,
+        }}
+        onProgressChange={(_, absoluteProgress) => {
+          progress.value = absoluteProgress;
+        }}
+        renderItem={({ item }: { item: OfferModel }) => (
           <TouchableOpacity
-            style={styles.registerBtn}
-            onPress={handleRegister}
             activeOpacity={0.85}
+            onPress={actions[item.key]}
+            style={styles.slide}
           >
-            <Text style={styles.registerBtnText}>Register Now</Text>
-            <Text style={styles.arrow}> →</Text>
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.image}
+              contentFit="cover"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
+            />
           </TouchableOpacity>
-        </View>
-      </View>
+        )}
+      />
+
+      {offers.length > 1 && <CarouselDots progress={progress} length={offers.length} />}
     </View>
   );
 };
 
-// ─── Style factory ──────────────────────────────────────────────────────────
-const createStyles = (colors: any) =>
-  StyleSheet.create({
+
+const createStyles = (theme: any) => {
+  const { colors } = theme;
+  return StyleSheet.create({
     wrapper: {
-      paddingHorizontal: 20,
-      marginTop: 16,
-    },
-    card: {
-      borderRadius: 20,
-      overflow: 'hidden',
-      position: 'relative',
-    },
-    blobLarge: {
-      position: 'absolute',
-      top: -20,
-      right: -20,
-      width: 110,
-      height: 80,
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      borderRadius: 20,
-    },
-    freeBadge: {
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      zIndex: 10,
-    },
-    freeBadgeText: {
-      color: '#fff',
-      fontWeight: '700',
-      fontSize: 14,
-    },
-    content: {
-      padding: 20,
-      gap: 10,
-    },
-    pill: {
-      alignSelf: 'flex-start',
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      borderRadius: 20,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    pillText: {
-      color: '#fff',
-      fontSize: 12,
-    },
-    headline: {
-      color: '#fff',
-      fontSize: 18,
-      fontWeight: '700',
-      lineHeight: 24,
-      marginTop: 4,
-      marginBottom: 4,
-    },
-    registerBtn: {
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(255,255,255,0.15)',
-      borderRadius: 20,
-      borderWidth: 0.5,
-      borderColor: '#fff',
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-      marginTop: 4,
-    },
-    registerBtnText: {
-      color: '#fff',
-      fontWeight: '600',
-      fontSize: 14,
-    },
-    arrow: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '700',
-    },
+    paddingHorizontal: 20,
+    marginTop: 16,
+  },
+  slide: {
+  width: ITEM_WIDTH,
+  height: CAROUSEL_HEIGHT,
+},
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  dotsContainer: {
+    gap: 6,
+    marginTop: 8,
+  },
+  dot: {
+    borderRadius: 100,
+    backgroundColor: '#D9D9D9',
+  },
+  activeDot: {
+    borderRadius: 100,
+    backgroundColor: '#333333',
+  },
   });
+};
+
+  

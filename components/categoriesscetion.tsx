@@ -68,6 +68,7 @@ export const CategoriesSection: React.FC<CategoriesSectionProps> = () => {
 
   return (
     <View style={styles.wrapper}>
+      <Text style={[styles.title, { color: colors.text }]}>Categories</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -148,4 +149,5 @@ const createStyles = (colors: any) =>
       fontSize: 13,
       textAlign: 'center',
     },
+    title: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
   });

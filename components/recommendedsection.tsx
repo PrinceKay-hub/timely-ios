@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  RefreshControl,
   useWindowDimensions,
   Platform
 } from 'react-native';
@@ -220,11 +219,11 @@ const ViewTypeSwitcher: React.FC<{ styles: any; colors: any }> = ({ styles, colo
   );
 
   return (
-    <View style={[styles.switcher, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.switcherTitle, { color: colors.text }]}>Top services</Text>
+    <View style={[styles.switcher]}>
+      <Text style={[styles.switcherTitle, { color: colors.text }]}>Exclusive services</Text>
       <View style={styles.switcherButtons}>
-        {btn('tile', '⊞')}
-        {btn('grid', '⊟')}
+        {btn('tile', '⊟')}
+        {btn('grid', '⊞')}
         {btn('list', '☰')}
       </View>
     </View>
@@ -237,7 +236,7 @@ const LIST_ROW_HEIGHT = 152; // listImage(120) + padding + marginBottom(16), whi
 
 // ─── Main component ─────────────────────────────────────────────────────
 export const RecommendedSection: React.FC = () => {
-  const { services, isLoading, error, fetchServiceData } = useServiceDataStore();
+  const { services, isLoading, isLoadingMore, hasMore, error, fetchServiceData } = useServiceDataStore();
   const { viewType } = useHomeStore();
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
@@ -263,6 +262,26 @@ export const RecommendedSection: React.FC = () => {
     ),
     [styles, colors]
   );
+
+  const footer = useMemo(() => {
+  if (isLoadingMore) {
+    return (
+      <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  }
+  if (!hasMore && services.length > 0) {
+    return (
+      <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+          You've reached the end
+        </Text>
+      </View>
+    );
+  }
+  return null;
+}, [isLoadingMore, hasMore, services.length, colors]);
 
   const renderItem = useCallback(
     ({ item }: { item: any }) => {
@@ -319,6 +338,7 @@ if (isLoading && services.length === 0) {
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       ListHeaderComponent={header}
+      ListFooterComponent={footer}
       numColumns={viewType === 'grid' ? 2 : 1}
       columnWrapperStyle={viewType === 'grid' ? styles.gridRow : undefined}
       contentContainerStyle={styles.listPad}
@@ -384,7 +404,7 @@ const createStyles = (theme: any) => {
     listBody: { flex: 1, padding: 12, gap: 4, justifyContent: 'center' },
     listName: { fontSize: 14, fontWeight: '700', color: colors.text },
     listLocation: { color: colors.textSecondary, fontSize: 12 },
-    switcher: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10, marginBottom: 4 },
+    switcher: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, marginBottom: 4 },
     switcherTitle: { fontSize: 14, fontWeight: '700' },
     switcherButtons: { flexDirection: 'row', gap: 2 },
     switchBtn: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
