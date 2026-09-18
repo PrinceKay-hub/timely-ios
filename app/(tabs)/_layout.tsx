@@ -15,7 +15,7 @@ const TRY_ON_ROUTE = 'tryon';
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   home: 'home',
-  favorites: 'heart',
+  shop: 'cart',
   tryon: 'sparkles',
   appointments: 'calendar',
   profile: 'person',
@@ -23,7 +23,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 const LABELS: Record<string, string> = {
   home: 'Home',
-  favorites: 'Favorites',
+  shop: 'Shop',
   tryon: 'Try on',
   appointments: 'Appointments',
   profile: 'Profile',
@@ -40,7 +40,7 @@ export default function TabLayout() {
       tabBar={(props) => <ModernTabBar {...props} />}
     >
       <Tabs.Screen name="home" options={{ title: LABELS.home }} />
-      <Tabs.Screen name="favorites" options={{ title: LABELS.favorites }} />
+      <Tabs.Screen name="shop" options={{ title: LABELS.shop }} />
       <Tabs.Screen name="tryon" options={{ title: LABELS.tryon }} />
       <Tabs.Screen
         name="appointments"

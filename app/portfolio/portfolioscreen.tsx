@@ -86,7 +86,7 @@ const PortfolioScreen = ({ route, navigation }: any) => {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Add',
-            onPress: (caption) => {
+            onPress: (caption: any) => {
               addPortfolioImage(asset, id, serviceName, caption || '');
             },
           },

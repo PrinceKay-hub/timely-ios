@@ -87,6 +87,7 @@ const ChatRow = React.memo<{
   const isProvider = isProviderInChat(chat, uid);
   const rowTitle = isProvider ? otherName : chat.serviceName || otherName;
   const presence = usePresenceSubscription(otherUid);
+  const serviceProductName = chat.serviceName;
 
   // Compute status only if last message is from current user
   const lastMsgStatus = getLastMessageStatus(chat, uid);
@@ -102,9 +103,14 @@ const ChatRow = React.memo<{
       />
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
-          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {rowTitle}
+          <View>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+            {otherName}
           </Text>
+          <Text style={[styles.servicename, { color: colors.text }]} numberOfLines={1} >
+            {serviceProductName}
+          </Text>
+          </View>
           <Text style={[styles.time, { color: colors.textSecondary }]}>
             {formatTimestamp(chat.lastMessageAt)}
           </Text>
@@ -208,7 +214,8 @@ const createStyles = (colors: any) =>
     rowBody: { flex: 1, gap: 4 },
     rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     rowBottom: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-    name: { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
+    name: { fontSize: 12, flex: 1, marginRight: 8 },
+    servicename: { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 },
     time: { fontSize: 12 },
     lastMessage: { fontSize: 13, flex: 1, marginRight: 4 },
     badge: {

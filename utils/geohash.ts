@@ -1,11 +1,3 @@
-// utils/geohash.ts
-//
-// Direct TypeScript port of the Dart geohash util used on the Flutter
-// side. Same algorithm (standard base32 geohash spec), verified to
-// produce identical output for the same lat/lon — so it stays
-// consistent with whatever generated the `geohash` field already on
-// your Firestore docs.
-
 const BASE32 = '0123456789bcdefghjkmnpqrstuvwxyz';
 
 /** Encodes a lat/lon into a geohash string of the given length. */

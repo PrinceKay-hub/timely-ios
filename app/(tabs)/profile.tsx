@@ -495,6 +495,17 @@ export default function Profile({ user }: ProfileScreenProps) {
       },
     },
     {
+      icon: '🛍️',
+      title: 'Manage Product Listing',
+      onPress: () => {
+        if (!isEmailVerified) {
+          Alert.alert('Unverified', 'Please verify your email first.');
+        } else {
+          navigation.navigate('manage-shop/index',);
+        }
+      },
+    },
+    {
       icon: '🖌️',
       title: 'Edit Profile',
       onPress: () =>  router.push('/edit-profile'),

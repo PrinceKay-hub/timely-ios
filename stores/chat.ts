@@ -110,7 +110,7 @@ interface ChatState {
   subscribeToMessages: (chatId: string) => Unsubscribe;
   getOrCreateChat: (params: GetOrCreateChatParams) => Promise<string>;
   sendMessage: (chatId: string, senderId: string, text: string, replyTo?: ChatMessage) => Promise<void>;
-sendImageMessage: (chatId: string, senderId: string, localUri: string, replyTo?: ChatMessage) => Promise<void>;
+  sendImageMessage: (chatId: string, senderId: string, localUri: string, replyTo?: ChatMessage) => Promise<void>;
   retryImageMessage: (chatId: string, senderId: string, failed: ChatMessage) => Promise<void>;
   markChatRead: (chatId: string, uid: string) => Promise<void>;
   // Merged view: server-confirmed + still-uploading local images. UI
@@ -120,8 +120,9 @@ sendImageMessage: (chatId: string, senderId: string, localUri: string, replyTo?:
   deleteMessageForEveryone: (chatId: string, messageId: string, senderId: string) => Promise<void>;
 }
 
-function chatIdFor(uidA: string, uidB: string): string {
-  return [uidA, uidB].sort().join('_');
+function chatIdFor(uidA: string, uidB: string, serviceId?: string): string {
+  const pair = [uidA, uidB].sort().join('_');
+  return serviceId ? `${pair}_${serviceId}` : pair;
 }
 
 function getImageSize(uri: string): Promise<{ width: number; height: number } | null> {
@@ -249,7 +250,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     serviceName,
     providerId,
   }) => {
-    const chatId = chatIdFor(currentUserId, otherUserId);
+    const chatId = chatIdFor(currentUserId, otherUserId, serviceId);
     const chatRef = doc(db, 'chats', chatId);
     const snap = await getDoc(chatRef);
     const resolvedProviderId = providerId ?? otherUserId;

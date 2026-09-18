@@ -61,14 +61,14 @@ export const PhotosStep: React.FC<Props> = ({ userId }) => {
 
     const result = fromCamera
       ? await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images',],
           allowsEditing: true,
-          quality: 1,
+          quality: 0.85,
         })
       : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images',],
           allowsMultipleSelection: true,
-          quality: 1,
+          quality: 0.85,
           selectionLimit: 3 - images.length,
         });
 

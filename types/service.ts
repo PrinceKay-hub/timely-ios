@@ -29,5 +29,6 @@ export interface ServiceEntity {
   region: string;
   district: string;
   rejectionReason?: string;
-  landmark: string
+  landmark: string,
+  providerName: string,
 }

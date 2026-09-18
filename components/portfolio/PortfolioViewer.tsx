@@ -3,12 +3,12 @@ import {
   View,
   Text,
   Modal,
-  SafeAreaView,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
   FlatList,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PortfolioImage } from '@/types/portfolio';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Image } from 'expo-image';
@@ -61,7 +61,7 @@ const PortfolioViewer: React.FC<Props> = ({
               <Image 
               source={{ uri: item.imageUrl }} 
               style={styles.fullImage} 
-              contentFit="cover"
+              contentFit="contain"
               transition={200}
               placeholder={colors.surface || '#f3f4f6'}
               />

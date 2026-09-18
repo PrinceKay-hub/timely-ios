@@ -29,6 +29,7 @@ import { DeletedBubble } from '@/components/chat/DeletedBubble';
 import { MessageActionsSheet } from '@/components/chat/MessageActionsSheet';
 import { QuotedReply } from '@/components/chat/QuotedReply';
 import { SwipeToReply } from '@/components/chat/SwipeToReply';
+import { BackButton } from '@/components/BackButton';
 
 
 type ChatItem = string | ChatMessage;
@@ -306,9 +307,7 @@ export default function ChatScreen() {
     >
       <View style={styles.container}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} >
-            <Ionicons name="arrow-back" size={24} color={'#fff'} />
-          </TouchableOpacity>
+          <BackButton />
           <ChatAvatar
             uri={otherPhoto}
             name={otherName}

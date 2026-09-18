@@ -6,8 +6,6 @@ import {
   where,
   orderBy,
   getDocs,
-  updateDoc,
-  doc,
   Timestamp,
 } from 'firebase/firestore';
 

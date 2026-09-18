@@ -196,7 +196,7 @@ export default function SignUpScreen({ onToggle }: Props) {
           <Field
             label="Full Name"
             value={name}
-            onChangeText={(v) => { setName(v); if (formErrors.name) setFormErrors(e => ({ ...e, name: '' })); }}
+            onChangeText={(v: React.SetStateAction<string>) => { setName(v); if (formErrors.name) setFormErrors(e => ({ ...e, name: '' })); }}
             placeholder="John Doe"
             icon="person-outline"
             autoCapitalize="words"
@@ -206,7 +206,7 @@ export default function SignUpScreen({ onToggle }: Props) {
           <Field
             label="Email Address"
             value={email}
-            onChangeText={(v) => { setEmail(v); if (formErrors.email) setFormErrors(e => ({ ...e, email: '' })); }}
+            onChangeText={(v: React.SetStateAction<string>) => { setEmail(v); if (formErrors.email) setFormErrors(e => ({ ...e, email: '' })); }}
             placeholder="your.email@example.com"
             icon="mail-outline"
             keyboardType="email-address"
@@ -216,7 +216,7 @@ export default function SignUpScreen({ onToggle }: Props) {
           <Field
             label="Password"
             value={password}
-            onChangeText={(v) => { setPassword(v); if (formErrors.password) setFormErrors(e => ({ ...e, password: '' })); }}
+            onChangeText={(v: React.SetStateAction<string>) => { setPassword(v); if (formErrors.password) setFormErrors(e => ({ ...e, password: '' })); }}
             placeholder="••••••••"
             icon="lock-closed-outline"
             secureTextEntry={!showPassword}
@@ -231,7 +231,7 @@ export default function SignUpScreen({ onToggle }: Props) {
           <Field
             label="Confirm Password"
             value={confirmPassword}
-            onChangeText={(v) => { setConfirmPassword(v); if (formErrors.confirmPassword) setFormErrors(e => ({ ...e, confirmPassword: '' })); }}
+            onChangeText={(v: React.SetStateAction<string>) => { setConfirmPassword(v); if (formErrors.confirmPassword) setFormErrors(e => ({ ...e, confirmPassword: '' })); }}
             placeholder="••••••••"
             icon="lock-closed-outline"
             secureTextEntry={!showConfirmPassword}

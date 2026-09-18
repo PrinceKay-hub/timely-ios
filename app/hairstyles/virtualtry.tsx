@@ -5,24 +5,18 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { getFirestore, collection, query, where, orderBy, onSnapshot, serverTimestamp, addDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, doc, limit, getDocs, } from "firebase/firestore";
 import { app } from "@/firebase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useRouter } from "expo-router";
 import { useTryOnUsage } from "@/hooks/useTryOnUsage";
 import { getAuth } from "firebase/auth";
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
 import { Image } from 'expo-image';
 import { Ionicons } from "@expo/vector-icons";
+import { useAuthStore } from "@/stores/auth";
 
 const functions = getFunctions(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 const { width } = Dimensions.get("window");
 const TILE_SIZE = (width - 48) / 3;
@@ -42,6 +36,7 @@ interface HairstyleOption {
 }
 
 export default function VirtualTryOnScreen() {
+  const { user} = useAuthStore();
   const router = useRouter();
   const { theme } = useTheme();
   const colors = theme.colors;
@@ -49,7 +44,7 @@ export default function VirtualTryOnScreen() {
 
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  
+
   // Custom hairstyle base64 & option state
   const [selectedStyle, setSelectedStyle] = useState<HairstyleOption | null>(null);
   const [customHairBase64, setCustomHairBase64] = useState<string | null>(null);
@@ -62,12 +57,11 @@ export default function VirtualTryOnScreen() {
   const [hairstyles, setHairstyles] = useState<HairstyleOption[]>([]);
   const [loadingStyles, setLoadingStyles] = useState(true);
   const { remaining, limitReached, usedToday } = useTryOnUsage();
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [transferring, setTransferring] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  const resultSectionY = useRef<number>(0);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
   // Fetch hairstyles from Firestore based on gender + type
   useEffect(() => {
@@ -97,6 +91,96 @@ export default function VirtualTryOnScreen() {
 
     return unsub;
   }, [gender, styleType]);
+
+
+  // -------------------------------------------------------------
+  // RESTORE STATE ON MOUNT
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (!user.uid) return;
+
+    let unsubPending: (() => void) | null = null;
+    let unsubHistory: (() => void) | null = null;
+
+    const restoreSession = async () => {
+      try {
+        // 1. Check if there is an in-flight pending task for this user
+        const pendingSnap = await getDocs(
+          query(
+            collection(db, "users", user.uid, "pendingTryOns"),
+            where("status", "==", "PROCESSING"),
+            orderBy("createdAt", "desc"),
+            limit(1)
+          )
+        );
+
+        if (!pendingSnap.empty) {
+          const pendingDoc = pendingSnap.docs[0];
+          const pendingData = pendingDoc.data();
+          const targetRequestId = pendingData.requestId;
+
+          // Resume loading state & set active request ID
+          setLoading(true);
+          setActiveRequestId(targetRequestId);
+
+          // Listen for job completion in tryOnHistory
+          unsubHistory = onSnapshot(
+            query(
+              collection(db, "users", user.uid, "tryOnHistory"),
+              where("requestId", "==", targetRequestId)
+            ),
+            (snapshot) => {
+              if (!snapshot.empty) {
+                const resultDoc = snapshot.docs[0].data();
+                if (resultDoc.imageUrl) {
+                  setResultUrl(resultDoc.imageUrl);
+                  setLoading(false);
+                  if (unsubPending) unsubPending();
+                  if (unsubHistory) unsubHistory();
+                }
+              }
+            }
+          );
+
+          // Listen for job failure in pendingTryOns
+          unsubPending = onSnapshot(
+            doc(db, "users", user.uid, "pendingTryOns", targetRequestId),
+            (docSnap) => {
+              if (docSnap.exists() && docSnap.data()?.status === "FAILED") {
+                setLoading(false);
+                Alert.alert("Try-On Failed", docSnap.data()?.error || "Generation failed.");
+                if (unsubPending) unsubPending();
+                if (unsubHistory) unsubHistory();
+              }
+            }
+          );
+        } else {
+          // 2. No pending task — load the user's latest generated image (if available)
+          const historySnap = await getDocs(
+            query(
+              collection(db, "users", user.uid, "tryOnHistory"),
+              orderBy("savedAt", "desc"),
+              limit(1)
+            )
+          );
+
+          if (!historySnap.empty) {
+            const latestDoc = historySnap.docs[0].data();
+            setResultUrl(latestDoc.imageUrl);
+          }
+        }
+      } catch (err) {
+        console.error("Error restoring try-on state:", err);
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      if (unsubPending) unsubPending();
+      if (unsubHistory) unsubHistory();
+    };
+  }, [user.uid]);
 
   const categories = ["All", ...Array.from(new Set(hairstyles.map((h) => h.category)))];
 
@@ -128,7 +212,7 @@ export default function VirtualTryOnScreen() {
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images',],
         quality: 0.85,
         base64: true,
         allowsEditing: true,
@@ -148,10 +232,9 @@ export default function VirtualTryOnScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images',],
       quality: 0.85,
       base64: true,
-      allowsEditing: true,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -182,29 +265,17 @@ export default function VirtualTryOnScreen() {
     );
   };
 
-  const saveFalImageToStorage = async (
-    falUrl: string,
-    retries = 3
-  ): Promise<string> => {
-    const uid = getAuth(app).currentUser?.uid;
-    if (!uid) throw new Error("Not authenticated");
-
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const response = await fetch(falUrl, { headers: { "Cache-Control": "no-cache" } });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const blob = await response.blob();
-        const timestamp = Date.now();
-        const storageRef = ref(storage, `tryOnResults/${uid}/${timestamp}.jpg`);
-        await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-        return await getDownloadURL(storageRef);
-      } catch (err) {
-        if (attempt === retries) throw err;
-        await new Promise((r) => setTimeout(r, attempt * 2000));
-      }
+  const handleShare = async (imageUrl: string) => {
+    try {
+      await Share.share({
+        message: `Check out my new hairstyle from Timely! 💇‍♀️`,
+        url: imageUrl, // iOS only
+      });
+    } catch (e) {
+      console.error("Share error:", e);
     }
-    throw new Error("All retry attempts failed");
   };
+
 
   const runTryOn = async () => {
     // 1. Guard check for required base image and style selection
@@ -327,25 +398,7 @@ export default function VirtualTryOnScreen() {
     }
   };
 
-  const saveResult = async () => {
-    const uid = getAuth(app).currentUser?.uid;
-    if (!uid || !resultUrl || !selectedStyle) return;
-    try {
-      setSaving(true);
-      await addDoc(collection(db, "users", uid, "tryOnHistory"), {
-        imageUrl: resultUrl,
-        styleName: selectedStyle.name,
-        category: selectedStyle.category,
-        savedAt: serverTimestamp(),
-      });
-      setSaved(true);
-      Alert.alert("Saved! ✅", "Your look has been saved to your history.");
-    } catch (e: any) {
-      Alert.alert("Error", "Failed to save. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
+
 
   return (
     <View style={[styles.div, { backgroundColor: colors.background }]}>
@@ -496,19 +549,39 @@ export default function VirtualTryOnScreen() {
 
         {/* Try On Button */}
         <TouchableOpacity
-          style={[styles.button, (!imageBase64 || !selectedStyle || loading || transferring || limitReached) && styles.buttonDisabled]}
+          style={[(!imageBase64 || !selectedStyle || loading || transferring || limitReached) && styles.buttonDisabled]}
           onPress={runTryOn}
           disabled={!imageBase64 || !selectedStyle || loading || transferring || limitReached}
         >
+          {/* Active Processing Card */}
           {loading || transferring ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color="#fff" />
-              <Text style={[styles.buttonText, { marginLeft: 8 }]}>
-                {loading ? "Swapping hair..." : "Saving result..."}
+            <View style={[styles.processingCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 12 }} />
+
+              <Text style={[styles.processingTitle, { color: colors.text }]}>
+                Generating Your Hairstyle ✨
               </Text>
+
+              <View style={styles.estimateBanner}>
+                <Ionicons name="time-outline" size={18} color="#D97706" />
+                <Text style={styles.estimateText}>
+                  AI processing takes approx. <Text style={{ fontWeight: "700" }}>5–10 minutes</Text>. You can safely leave or wait here—your look will auto-update when ready!
+                </Text>
+              </View>
             </View>
           ) : (
-            <Text style={styles.buttonText}>{limitReached ? "⛔ Limit Reached" : "✨ Try This Style"}</Text>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                (!imageBase64 || !selectedStyle || limitReached) && styles.buttonDisabled,
+              ]}
+              onPress={runTryOn}
+              disabled={!imageBase64 || !selectedStyle || limitReached}
+            >
+              <Text style={styles.buttonText}>
+                {limitReached ? "⛔ Limit Reached" : "✨ Try This Style"}
+              </Text>
+            </TouchableOpacity>
           )}
         </TouchableOpacity>
 
@@ -525,17 +598,56 @@ export default function VirtualTryOnScreen() {
             <View style={styles.resultActionsRow}>
               <TouchableOpacity
                 style={[styles.resultActionBtn, { backgroundColor: colors.surface, borderColor: saved ? "#22c55e" : colors.border, borderWidth: 1 }]}
-                onPress={saved ? undefined : saveResult}
-                disabled={saving || saved}
               >
                 <Text style={[styles.resultActionBtnText, { color: saved ? "#22c55e" : colors.primary }]}>
-                  {saved ? "✅ Saved" : "🔖 Save Look"}
+                  ✅ Saved
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       </ScrollView>
+
+      {/* Full Screen Modal */}
+      <Modal
+        visible={!!fullScreenVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFullScreenVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setFullScreenVisible(false)}
+              style={[styles.modalCloseBtn, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+            >
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
+            <View style={styles.modalTitleBlock}>
+              <Text style={styles.modalTitle}>New look</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.shareBtn, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
+              onPress={() => resultUrl && handleShare(resultUrl)}
+            >
+              <Text style={styles.shareBtnText}>Share</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Full Image */}
+          {resultUrl && (
+            <Image
+              source={{ uri: resultUrl }}
+              style={styles.fullImage}
+              contentFit="contain"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -596,4 +708,37 @@ const createStyles = (colors: any) =>
     resultActionsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
     resultActionBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center" },
     resultActionBtnText: { fontWeight: "600", fontSize: 14 },
+    processingCard: { marginTop: 20, padding: 20, borderRadius: 16, borderWidth: 1, alignItems: "center", },
+    processingTitle: { fontSize: 16, fontWeight: "700", marginBottom: 4, },
+    processingTimer: { fontSize: 15, fontWeight: "600", marginBottom: 16, },
+    estimateBanner: { flexDirection: "row", alignItems: "center", backgroundColor: "#FEF3C7", borderRadius: 10, padding: 12, gap: 10, },
+    estimateText: { flex: 1, color: "#92400E", fontSize: 12, lineHeight: 18, },
+
+    // Modal – stays dark for image viewing
+    modalContainer: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)" },
+    modalHeader: {
+      paddingTop: 60,
+      paddingBottom: 16,
+      paddingHorizontal: 20,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    modalCloseBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalCloseText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+    modalTitleBlock: { flex: 1, alignItems: "center" },
+    modalTitle: { color: "#fff", fontSize: 16, fontWeight: "700" },
+    modalSubtitle: { color: "#aaa", fontSize: 12, marginTop: 2 },
+    shareBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    shareBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+    fullImage: { flex: 1, width: "100%" },
   });

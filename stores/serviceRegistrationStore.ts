@@ -43,6 +43,7 @@ const createBlankService = (): ServiceEntity =>
     region: '',
     district: '',
     landmark: '',
+    providerName: ''
   }) as ServiceEntity;
 
 interface ServiceRegistrationState {
@@ -57,7 +58,7 @@ interface ServiceRegistrationState {
   resetForm: () => void;
   setStep: (step: number) => void;
   updateServiceField: <K extends keyof ServiceEntity>(field: K, value: ServiceEntity[K]) => void;
-  saveService: (providerId: string, allImageFiles: string[]) => Promise<void>; // unified save (create or update)
+  saveService: (providerId: string, allImageFiles: string[], providerName: string) => Promise<void>; // unified save (create or update)
   updateExistingService: (serviceId: string, data: Partial<ServiceEntity>) => Promise<void>;
   deleteExistingService: (serviceId: string, providerId: string) => Promise<void>;
   setCurrentServiceForEdit: (service: ServiceEntity) => void;
@@ -112,7 +113,7 @@ export const useServiceRegistrationStore = create<ServiceRegistrationState>((set
   },
 
   // Unified save method: handles both create and update
-  saveService: async (providerId: string, allImageFiles: string[]) => {
+  saveService: async (providerId: string, allImageFiles: string[], providerName: string) => {
     set({ isLoading: true, error: null });
     try {
       const service = get().currentService;
@@ -163,7 +164,8 @@ export const useServiceRegistrationStore = create<ServiceRegistrationState>((set
           longitude: service.longitude,
           images: finalImages,
           status: newStatus,
-          landmark: service.landmark
+          landmark: service.landmark,
+          providerName: service.providerName
         };
 
         await updateService(service.id, updateData);
@@ -179,6 +181,7 @@ export const useServiceRegistrationStore = create<ServiceRegistrationState>((set
           images: imageUrls,
           createdAt: new Date(),
           status: 'pending',
+          providerName: providerName
         };
         await createService(serviceData);
         await linkServiceToProvider(providerId,);

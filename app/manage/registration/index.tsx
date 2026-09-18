@@ -18,7 +18,7 @@ import { useTheme } from '@/providers/ThemeProvider';
 export default function ServiceRegistrationScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { theme } = useTheme();
   const colors = theme.colors;
 
@@ -38,6 +38,8 @@ export default function ServiceRegistrationScreen() {
   } = useServiceRegistrationStore();
 
   const effectiveUserId = userId || user?.uid;
+
+  const providerName = profile?.displayName || user?.displayName;
 
   useEffect(() => {
     if (effectiveUserId) {
@@ -105,7 +107,7 @@ export default function ServiceRegistrationScreen() {
     if (step < 7) {
       setStep(step + 1);
     } else {
-      await saveService(effectiveUserId!, currentService?.images || []);
+      await saveService(effectiveUserId!, currentService?.images || [], providerName);
     }
   };
 

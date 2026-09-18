@@ -12,7 +12,7 @@ import { useReviewStore } from '@/stores/reviewService';
 import { useServiceDataStore } from '@/stores/serviceData';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -77,7 +77,15 @@ export default function DetailScreen() {
 
   const isFavorite = favoriteIds.has(currentService?.id || '');
 
-  const handleBack = () => router.back();
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // Cold boot from notification: no history, so route to fallback.
+      // `replace` (not `push`) so this screen is removed from the stack.
+      router.replace('/(tabs)/home' as Href);
+    }
+  };
 
   const handleToggleFavorite = () => {
     if (!currentService) return;
@@ -93,7 +101,7 @@ export default function DetailScreen() {
     if (!currentService) return;
     const url = `https://timelygh.com/service/${currentService.id}`;
     try {
-      await Share.share({ message: `Check out my services: ${url}` });
+      await Share.share({ message: `Hey, I found this venue on Timely, Ghana's #1 self-care marketplace. Check it out: ${url}` });
     } catch (error) {
       console.log(error);
     }
@@ -137,7 +145,7 @@ export default function DetailScreen() {
         currentUserName: profile?.displayName || user.displayName,
         currentUserPhoto: profile?.photoURL || user.photoURL,
         otherUserId: currentService.providerId,
-        otherUserName: currentService.name,
+        otherUserName: currentService.providerName || currentService.name,
         otherUserPhoto: currentService.providerPhoto || currentService.images?.[0],
         serviceId: currentService.id,
         serviceName: currentService.name,

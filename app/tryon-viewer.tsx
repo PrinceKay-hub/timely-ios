@@ -1,18 +1,19 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
-  View,  Text, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   Dimensions, StatusBar, FlatList, ActivityIndicator,
-  Modal, Share,
+  Alert, Share,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getFirestore, collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, query, orderBy, onSnapshot, deleteDoc, where, doc, getDocs } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { app } from "@/firebase";
 import { useTheme } from "@/providers/ThemeProvider";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from 'expo-image';
+import GalleryWidget from "@/components/Gallerywidget";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 const db = getFirestore(app);
 
 interface TryOnRecord {
@@ -32,6 +33,9 @@ export default function TryOnViewerScreen() {
   const [history, setHistory] = useState<TryOnRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<TryOnRecord | null>(null);
+
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   useEffect(() => {
     const uid = getAuth(app).currentUser?.uid;
@@ -54,6 +58,36 @@ export default function TryOnViewerScreen() {
     return unsub;
   }, []);
 
+
+  const deleteImage = async ( imageUrl: string) => {
+    const uid = getAuth(app).currentUser?.uid;
+    if (!uid) return;
+    setLoading(true);
+    try {
+
+      const q = query(
+        collection(db, "users", uid, "tryOnHistory"),
+        where("imageUrl", "==", imageUrl)
+      );
+
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        console.warn("No matching try-on history found");
+        return;
+      }
+
+      const deletions = snapshot.docs.map((d: { id: string; }) => deleteDoc(doc(db, "users", uid, "tryOnHistory", d.id)));
+      await Promise.all(deletions);
+
+      // Listener will reflect deletion automatically
+      setLoading(false);
+    } catch (error: any) {
+      setLoading(false);
+      console.error("Error deleting image:", error);
+      Alert.alert("Error", "Failed to delete the image. Please try again.");
+    }
+  };
+
   const handleShare = async (imageUrl: string) => {
     try {
       await Share.share({
@@ -63,6 +97,22 @@ export default function TryOnViewerScreen() {
     } catch (e) {
       console.error("Share error:", e);
     }
+  };
+
+  const handleDelete = (image: any) => {
+    console.log("Attempting to delete image:", image.imageUrl);
+    Alert.alert(
+      'Delete Image',
+      'Are you sure you want to remove this image?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteImage(image.imageUrl),
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -82,7 +132,7 @@ export default function TryOnViewerScreen() {
         <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: '#fff' }]}>
           <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Looks</Text>
+        <Text style={styles.headerTitle}>Try-On History</Text>
       </View>
 
       {history.length === 0 ? (
@@ -109,15 +159,19 @@ export default function TryOnViewerScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.tile, { backgroundColor: colors.card || colors.surface }]}
-              onPress={() => setSelectedImage(item)}
               activeOpacity={0.85}
+              onPress={() => {
+                setGalleryIndex(item.id ? history.findIndex(h => h.id === item.id) : 0);
+                setGalleryVisible(true);
+              }}
+             onLongPress={() => handleDelete(item)}
             >
-              <Image 
-              source={{ uri: item.imageUrl }} 
-              style={styles.tileImage} 
-              contentFit="cover"
-              transition={200}
-              placeholder={colors.surface || '#f3f4f6'}
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.tileImage}
+                contentFit="cover"
+                transition={200}
+                placeholder={colors.surface || '#f3f4f6'}
               />
               <View style={[styles.tileOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
                 <Text style={styles.tileName} numberOfLines={1}>
@@ -132,63 +186,14 @@ export default function TryOnViewerScreen() {
         />
       )}
 
-      {/* Full Screen Modal */}
-      <Modal
-        visible={!!selectedImage}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => setSelectedImage(null)}
-      >
-        <View style={styles.modalContainer}>
-          {/* Modal Header */}
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              onPress={() => setSelectedImage(null)}
-              style={[styles.modalCloseBtn, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
-            >
-              <Text style={styles.modalCloseText}>✕</Text>
-            </TouchableOpacity>
-            <View style={styles.modalTitleBlock}>
-              <Text style={styles.modalTitle}>{selectedImage?.styleName}</Text>
-              <Text style={styles.modalSubtitle}>{selectedImage?.category}</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.shareBtn, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
-              onPress={() => selectedImage && handleShare(selectedImage.imageUrl)}
-            >
-              <Text style={styles.shareBtnText}>Share</Text>
-            </TouchableOpacity>
-          </View>
+      {galleryVisible && (
+        <GalleryWidget
+          images={history.map((item) => item.imageUrl)}
+          index={galleryIndex}
+          onClose={() => setGalleryVisible(false)}
+        />
+      )}
 
-          {/* Full Image */}
-          {selectedImage && (
-            <Image
-              source={{ uri: selectedImage.imageUrl }}
-              style={styles.fullImage}
-              contentFit="cover"
-              transition={200}
-              placeholder={colors.surface || '#f3f4f6'}
-            />
-          )}
-
-          {/* Bottom actions
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={styles.bookNowBtn}
-              onPress={() => {
-                setSelectedImage(null);
-                // Navigate to booking with style pre-selected
-                // router.push({ pathname: "/booking", params: { style: selectedImage?.styleName } });
-              }}
-            >
-              <Text style={styles.bookNowText}>💅 Book This Style</Text>
-            </TouchableOpacity>
-            
-          </View>
-           */}
-        </View>
-      </Modal>
     </View>
   );
 }
