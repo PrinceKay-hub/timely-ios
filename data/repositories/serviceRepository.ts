@@ -8,14 +8,11 @@ import {
   getDocs,
   doc,
   getDoc,
+  startAt, endAt
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/firebase';
-import {
-  geohashNeighborsAndSelf,
-  geohashPrecisionForRadiusKm,
-  haversineKm,
-} from '@/utils/geohash'; // ADJUST to wherever you place geohash.ts
+import { geohashQueryBounds, distanceBetween } from 'geofire-common';
 
 // Service type for better type safety
 export interface Service {
@@ -35,7 +32,7 @@ export const getAllServices = async (): Promise<Service[]> => {
   try {
     const q = query(
       servicesCollection(),
-      where('status', '==', 'approved'),
+      //where('status', '==', 'approved'),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -104,59 +101,48 @@ export const getServicesPage = async (
 // ─── Near You: geohash 3x3 cell grid + exact Haversine filter/sort ─────────
 
 export const getNearbyServices = async ({
-  latitude,
-  longitude,
-  radiusKm = 15,
-  maxResults = 15,
+  latitude, longitude, radiusKm = 15, maxResults = 15,
 }: {
-  latitude: number;
-  longitude: number;
-  radiusKm?: number;
-  maxResults?: number;
+  latitude: number; longitude: number; radiusKm?: number; maxResults?: number;
 }): Promise<Service[]> => {
   try {
-    const precision = geohashPrecisionForRadiusKm(radiusKm);
-    const cellHashes = geohashNeighborsAndSelf(latitude, longitude, precision);
+    const bounds = geohashQueryBounds([latitude, longitude], radiusKm * 1000);
 
-    const queries = Array.from(cellHashes).map((prefix) =>
-      getDocs(
-        query(
-          servicesCollection(),
-          where('status', '==', 'approved'),
-          where('geohash', '>=', prefix),
-          where('geohash', '<=', prefix + '\uf8ff'),
-          limit(25)
+    const snapshots = await Promise.all(
+      bounds.map(([start, end]: [string, string]) =>
+        getDocs(
+          query(
+            servicesCollection(),
+            where('status', '==', 'approved'),
+            orderBy('geohash'),
+            startAt(start),
+            endAt(end)
+          )
         )
       )
     );
 
-    const snapshots = await Promise.all(queries);
-
-    const seenIds = new Set<string>();
-    const withDistance: { distanceKm: number; data: Service }[] = [];
+    const seen = new Set<string>();
+    const results: Service[] = [];
 
     for (const snap of snapshots) {
-      for (const docSnap of snap.docs) {
-        if (seenIds.has(docSnap.id)) continue;
-        seenIds.add(docSnap.id);
+      for (const d of snap.docs) {
+        if (seen.has(d.id)) continue;
+        seen.add(d.id);
+        const data = d.data();
+        const lat = Number(data.latitude);
+        const lng = Number(data.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
-        const data = docSnap.data();
-        const lat = typeof data.latitude === 'number' ? data.latitude : null;
-        const lng = typeof data.longitude === 'number' ? data.longitude : null;
-        if (lat === null || lng === null) continue;
-
-        const distanceKm = haversineKm(latitude, longitude, lat, lng);
+        const distanceKm = distanceBetween([lat, lng], [latitude, longitude]);
         if (distanceKm <= radiusKm) {
-          withDistance.push({
-            distanceKm,
-            data: { id: docSnap.id, ...data, distanceKm },
-          });
+          results.push({ id: d.id, ...data, distanceKm });
         }
       }
     }
 
-    withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-    return withDistance.slice(0, maxResults).map((e) => e.data);
+    results.sort((a, b) => a.distanceKm! - b.distanceKm!);
+    return results.slice(0, maxResults);
   } catch (e) {
     throw new Error(`Failed to get nearby services: ${e}`);
   }

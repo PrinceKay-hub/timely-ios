@@ -1,6 +1,8 @@
 import { categoryRepository } from "@/data/repositories/categoryRepository";
 import * as Location from "expo-location";
 import { create } from "zustand";
+import { userRepository } from "@/data/repositories/userRepository";
+import { getAddressFromLatLng } from "@/services/locationService";
 
 // ─── ViewType enum (mirrors Flutter's enum ViewType { grid, list, tile }) ─────
 export type ViewType = "grid" | "list" | "tile";
@@ -73,25 +75,35 @@ export const useHomeStore = create<HomeStore>((set, get) => ({
 
   // ── updateLocation ─────────────────────────────────────────────────────────
   // Uses expo-location (Expo‑compatible)
+
   updateLocation: async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        console.log("Location permission denied");
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      const { latitude, longitude } = position.coords;
-      get().setLocation(`${latitude},${longitude}`);
-    } catch (error) {
-      console.log("Failed to get location", error);
-      // Fail silently, same as original
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      console.log("Location permission denied");
+      return;
     }
-  },
+
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    const { latitude, longitude } = position.coords;
+
+    const address = await getAddressFromLatLng(latitude, longitude);
+
+    // Show the readable address in the UI, fall back to coordinates
+    get().setLocation(`${latitude},${longitude}`);
+
+    // Saving is best-effort; a Firestore failure shouldn't break the UI update
+    try {
+      await userRepository.saveLocation({ latitude, longitude, address });
+    } catch (e) {
+      console.log("Failed to save location to Firestore", e);
+    }
+  } catch (error) {
+    console.log("Failed to get location", error);
+  }
+},
 
   // ── showSnackbar (replaces ScaffoldMessenger.of(context).showSnackBar) ─────
   showSnackbar: (message: string, type: "error" | "success") => {

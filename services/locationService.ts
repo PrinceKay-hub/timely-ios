@@ -1,5 +1,6 @@
 import { db } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
+import * as Location from "expo-location";
 
 /**
  * Fetches all regions and their districts from Firestore.
@@ -22,3 +23,31 @@ export const fetchAllRegions = async (): Promise<Map<string, string[]>> => {
     throw new Error(`Failed to fetch regions: ${e}`);
   }
 };
+
+
+
+export async function getAddressFromLatLng(
+  latitude: number,
+  longitude: number
+): Promise<string | null> {
+  try {
+    const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+    const p = results[0];
+    if (!p) return null;
+
+    // Prefer the pre-formatted address when the platform provides it
+    if (p.formattedAddress) return p.formattedAddress;
+
+    const parts = [
+      p.district,
+      p.city,
+      p.region,
+      p.country,
+    ].filter((part): part is string => !!part && part.trim().length > 0);
+
+    return parts.length ? parts.join(", ") : null;
+  } catch (e) {
+    console.log("Reverse geocoding failed", e);
+    return null;
+  }
+}

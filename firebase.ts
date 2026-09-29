@@ -5,6 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 import { getDatabase } from 'firebase/database';
+import { getPerformance } from "firebase/performance";
 
 
 const firebaseConfig = {
@@ -24,6 +25,7 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 
 // Export the app instance for use with Firebase Functions
 export const app = initializeApp(firebaseConfig);
+export const perf = getPerformance(app);
 
 // Initialize Auth with persistence
 export const auth = initializeAuth(app, {
