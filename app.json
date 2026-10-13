@@ -61,7 +61,6 @@
       "splash": {
         "backgroundColor": "#8B5CF6"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "CAMERA",
@@ -100,7 +99,6 @@
     },
     "plugins": [
       "expo-router",
-      "expo-av",
       "./plugins/withAPNSToken",
       [
         "expo-splash-screen",
