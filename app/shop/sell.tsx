@@ -1,5 +1,4 @@
 import { createProduct, getUploadUrls, updateProduct, uploadImageToB2 } from "@/services/shopApi";
-import { useSelectedLocationStore } from "@/stores/selectedLocationStore";
 import { CATEGORIES, Product, ProductCategory } from "@/types/product";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -25,10 +24,10 @@ import { doc, getDoc, getFirestore } from "firebase/firestore";
 import { useAuthStore } from '@/stores/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from "@/providers/ThemeProvider";
+import { CurrencyPickerModal, findCurrency, Currency } from "@/components/Currencypickermodal";
 
 const MAX_IMAGES = 5;
 const MAX_TAGS = 15;
-const CURRENCY = "GHS";
 
 interface PickedImage {
     id: string;
@@ -62,9 +61,6 @@ export default function SellScreen() {
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState("");
     const [landmark, setLandmark] = useState("");
-    const selectedLocation = useSelectedLocationStore((s) => s.selectedLocation);
-    const setSelectedLocation = useSelectedLocationStore((s) => s.setSelectedLocation);
-    const [useCall, setUseCall] = useState(false);
     const [callNumber, setCallNumber] = useState("");
     const [isDelivery, setIsDelivery] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -72,6 +68,9 @@ export default function SellScreen() {
 
     const [loadingProduct, setLoadingProduct] = useState(isEditMode);
     const [loadError, setLoadError] = useState(false);
+
+    const [currency, setCurrency] = useState<Currency>(findCurrency("GHS"));
+    const [currencyOpen, setCurrencyOpen] = useState(false);
 
     useEffect(() => {
         if (!productId) return;
@@ -98,22 +97,15 @@ export default function SellScreen() {
                 setName(data.name);
                 setDescription(data.description);
                 setPrice(String(data.price));
+                setCurrency(findCurrency(data.currency));
                 setCategory(data.category);
                 setTags(data.tags ?? []);
                 setExistingImages(data.images ?? []);
                 setIsDelivery(!!data.isDelivery);
-
-                if (data.contact) {
-                    setUseCall(true);
-                    setCallNumber(data.contact);
-                } else {
-                    setUseCall(false);
-                    setCallNumber("");
-                }
+                setCallNumber(data.contact);
 
                 if (data.location) {
-                    setSelectedLocation(`${data.location.region} - ${data.location.district}`);
-                    setLandmark(data.location.landmark ?? "");
+                    setLandmark(data.location);
                 }
             } catch (err) {
                 console.error("Failed to load listing for edit:", err);
@@ -206,9 +198,8 @@ export default function SellScreen() {
         if (!name.trim()) return "Enter a product name.";
         if (!price || isNaN(Number(price)) || Number(price) <= 0) return "Enter a valid price.";
         if (!category) return "Choose a category.";
-        if (useCall && !callNumber.trim()) return "Enter a Call number.";
-        if (selectedLocation === "Select Location") return "Select a location";
-        if (!landmark.trim()) return "Enter nearest landmark";
+        if (!callNumber.trim()) return "Enter a Call number.";
+        if (!landmark.trim()) return "Enter location (e.g. Accra - Osu)";
         return null;
     }
 
@@ -234,20 +225,10 @@ export default function SellScreen() {
                 newImageKeys = uploads.map((u) => u.key);
             }
 
-            const contact = useCall ? callNumber.trim() : "";
+            const contact = callNumber.trim();
 
-            const parsedLocation = parseSelectedLocation(selectedLocation);
-            const location = parsedLocation
-                ? {
-                    region: parsedLocation.region,
-                    district: parsedLocation.district,
-                    landmark: landmark.trim(),
-                }
-                : {
-                    region: "",
-                    district: "",
-                    landmark: "",
-                };
+            const location = landmark.trim();
+
 
             if (isEditMode && productId) {
                 await updateProduct({
@@ -262,6 +243,7 @@ export default function SellScreen() {
                     contact,
                     isDelivery,
                     location,
+                    currency: currency.code,
                 });
                 Alert.alert("Listing updated", "Your changes are live.");
             } else {
@@ -275,12 +257,12 @@ export default function SellScreen() {
                     contact,
                     isDelivery,
                     location,
+                    currency: currency.code,
                     sellerName: profile?.displayName || user.displayName,
                 });
                 Alert.alert("Listed successfully", "Your product is now under going review.");
             }
 
-            setSelectedLocation("Select Location");
             router.back();
         } catch (err) {
             console.error(`Failed to ${isEditMode ? "update" : "create"} listing:`, err);
@@ -390,14 +372,31 @@ export default function SellScreen() {
                         multiline
                     />
 
-                    <Text style={styles.label}>Price ({CURRENCY})</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="0.00"
-                        placeholderTextColor={colors.textSecondary}
-                        keyboardType="decimal-pad"
-                        value={price}
-                        onChangeText={setPrice}
+                    <Text style={styles.label}>Price</Text>
+                    <View style={styles.priceRow}>
+                        <TouchableOpacity
+                            style={styles.currencyButton}
+                            onPress={() => setCurrencyOpen(true)}
+                        >
+                            <Text style={styles.currencyCode}>{currency.code}</Text>
+                            <Text style={styles.currencySymbol}>{currency.symbol}</Text>
+                            <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                        <TextInput
+                            style={[styles.input, { flex: 1, marginTop: 0 }]}
+                            placeholder="0.00"
+                            placeholderTextColor={colors.textSecondary}
+                            keyboardType="decimal-pad"
+                            value={price}
+                            onChangeText={setPrice}
+                        />
+                    </View>
+
+                    <CurrencyPickerModal
+                        visible={currencyOpen}
+                        onClose={() => setCurrencyOpen(false)}
+                        selectedCode={currency.code}
+                        onSelect={setCurrency}
                     />
 
                     <Text style={styles.label}>Category</Text>
@@ -468,28 +467,10 @@ export default function SellScreen() {
                     <Text style={styles.hint}>{tags.length}/{MAX_TAGS} tags · tap a tag to remove it</Text>
 
                     <Text style={styles.label}>Location</Text>
-                    <View style={styles.locationRow}>
-                        <TouchableOpacity
-                            style={[styles.locationButton, { backgroundColor: colors.surface }]}
-                            onPress={() =>
-                                router.push({ pathname: '/location/regions', params: { isService: "true" } })
-                            }
-                        >
-                            <MaterialCommunityIcons name="map-marker-outline" size={16} color={colors.primary} />
-                            <Text style={[styles.locationButtonText, { color: colors.primary }]}>
-                                {selectedLocation ?? "Choose region & district"}
-                            </Text>
-                        </TouchableOpacity>
-                        {selectedLocation !== "Select Location" && (
-                            <TouchableOpacity onPress={() => setSelectedLocation("Select Location")}>
-                                <MaterialCommunityIcons name="close-circle" size={20} color={colors.textSecondary} />
-                            </TouchableOpacity>
-                        )}
-                    </View>
 
                     <TextInput
                         style={styles.input}
-                        placeholder="Nearest landmark (optional)"
+                        placeholder="Location (e.g. Accra - Osu)"
                         placeholderTextColor={colors.textSecondary}
                         value={landmark}
                         onChangeText={setLandmark}
@@ -511,57 +492,15 @@ export default function SellScreen() {
                         />
                     </View>
 
-                    <Text style={styles.label}>How should buyers reach you?</Text>
-                    <View style={styles.contactRow}>
-                        <TouchableOpacity
-                            style={[
-                                styles.contactOption,
-                                {
-                                    borderColor: colors.border || '#E7E4EF',
-                                    backgroundColor: !useCall ? colors.text : 'transparent',
-                                },
-                            ]}
-                            onPress={() => setUseCall(false)}
-                        >
-                            <Text
-                                style={[
-                                    styles.contactLabel,
-                                    { color: !useCall ? colors.background : colors.text },
-                                ]}
-                            >
-                                In-app chat
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[
-                                styles.contactOption,
-                                {
-                                    borderColor: colors.border || '#E7E4EF',
-                                    backgroundColor: useCall ? colors.text : 'transparent',
-                                },
-                            ]}
-                            onPress={() => setUseCall(true)}
-                        >
-                            <Text
-                                style={[
-                                    styles.contactLabel,
-                                    { color: useCall ? colors.background : colors.text },
-                                ]}
-                            >
-                                Call
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                    {useCall && (
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g. 0244123456"
-                            placeholderTextColor={colors.textSecondary}
-                            keyboardType="phone-pad"
-                            value={callNumber}
-                            onChangeText={setCallNumber}
-                        />
-                    )}
+                    <Text style={styles.label}>Contact for buyers</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="e.g. 0244123456"
+                        placeholderTextColor={colors.textSecondary}
+                        keyboardType="phone-pad"
+                        value={callNumber}
+                        onChangeText={setCallNumber}
+                    />
                 </ScrollView>
 
                 <View style={[styles.footer, { borderTopColor: colors.border || '#E7E4EF' }]}>
@@ -789,4 +728,18 @@ const createStyles = (colors: any) =>
             padding: 8,
             marginRight: 16,
         },
+        priceRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+currencyButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  paddingHorizontal: 12,
+  height: 44,
+  borderRadius: 10,
+  borderWidth: 0.5,
+  borderColor: colors.border || "#E7E4EF",
+  backgroundColor: colors.surface,
+},
+currencyCode: { fontSize: 14, fontWeight: "600", color: colors.text },
+currencySymbol: { fontSize: 14, color: colors.textSecondary },
     });

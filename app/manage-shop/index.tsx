@@ -30,6 +30,7 @@ import { getAuth } from "firebase/auth";
 import { CATEGORIES, Product, ProductStatus } from "../../types/product";
 import { deleteProduct } from "@/services/shopApi";
 import { useTheme } from "@/providers/ThemeProvider";
+import { findCurrency } from "@/components/Currencypickermodal";
 
 // ─── Helpers (unchanged) ─────────────────────────────────────────────────
 function toMillis(value: unknown): number {
@@ -233,7 +234,7 @@ export default function MyListingsScreen() {
                     </View>
 
                     <Text style={[styles.cardPrice, { color: colors.primary }]}>
-                        {item.currency} {item.price.toLocaleString()}
+                        {findCurrency(item.currency).symbol}{item.price.toLocaleString()}
                     </Text>
 
                     <View style={styles.cardMetaRow}>

@@ -39,7 +39,7 @@ const createBlankService = (): ServiceEntity =>
     services: [],
     status: 'pending',
     amenities: [],
-    number: '+233',
+    number: '',
     region: '',
     district: '',
     landmark: '',

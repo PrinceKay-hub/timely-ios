@@ -25,6 +25,7 @@ import {
 } from 'firebase/storage';
 import { Image as RNImage } from 'react-native';
 import { sendNotification } from '@/services/notificationService';
+import { mediaDevices, RTCPeerConnection } from 'react-native-webrtc';
 
 export type MessageType = 'text' | 'image';
 

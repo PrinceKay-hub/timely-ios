@@ -78,11 +78,10 @@ export default function ServiceRegistrationScreen() {
         return currentService.description.length >= 50;
       case 4:
         return (
-          currentService.location != 'Select Location' &&
-          currentService.number.trim().length > 12 &&
-          currentService.landmark.trim().length > 0
-          //currentService.latitude != null && currentService.longitude != null &&
-         // (currentService.latitude !== 0 || currentService.longitude !== 0)
+          currentService.number.trim().length !== 0 && currentService.number !== null &&
+          currentService.landmark.trim().length > 0 &&
+          currentService.latitude != null && currentService.longitude != null &&
+          (currentService.latitude !== 0 || currentService.longitude !== 0)
         );
       case 5: {
         const startMin = currentService.workingHours.startHour * 60 + currentService.workingHours.startMinute;

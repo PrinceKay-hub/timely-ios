@@ -113,7 +113,7 @@ export const getNearbyServices = async ({
         getDocs(
           query(
             servicesCollection(),
-            where('status', '==', 'approved'),
+            //where('status', '==', 'approved'),
             orderBy('geohash'),
             startAt(start),
             endAt(end)

@@ -28,6 +28,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialTabBar, Tabs } from 'react-native-collapsible-tab-view';
+import { isCallingAvailable, startCall } from '@/services/callService';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
@@ -108,6 +109,13 @@ export default function DetailScreen() {
   };
 
   const handleCall = async () => {
+    // if (!isCallingAvailable()) return;
+    // await startCall({
+    // calleeId: currentService?.providerId,   // your field names
+    // contextType: 'service',
+    // serviceId: currentService?.id,
+    // peerName: currentService?.providerName,
+    //}).catch(() => {});
     if (!currentService?.number) {
       Alert.alert('Error', 'Phone number not available');
       return;
@@ -263,7 +271,7 @@ export default function DetailScreen() {
     loading?: boolean;
   }) => (
     <TouchableOpacity
-      style={[styles.quickAction, { backgroundColor: colors.card, shadowColor:  '#000' }]}
+      style={[styles.quickAction, { backgroundColor: colors.card, shadowColor: '#000' }]}
       onPress={onPress}
       disabled={loading}
     >
@@ -296,12 +304,12 @@ export default function DetailScreen() {
               setGalleryVisible(true);
             }}
           >
-            <Image 
-            source={{ uri: item }} 
-            style={styles.headerImage} 
-            contentFit="cover"
-            transition={200}
-            placeholder={colors.surface || '#f3f4f6'}
+            <Image
+              source={{ uri: item }}
+              style={styles.headerImage}
+              contentFit="cover"
+              transition={200}
+              placeholder={colors.surface || '#f3f4f6'}
             />
           </TouchableOpacity>
         )}
@@ -357,26 +365,26 @@ export default function DetailScreen() {
         </View>
         <View style={[styles.badge]}>
           <OpenStatusBadge service={{
-          workingDays: currentService.workingDays,
-          workingHours: currentService.workingHours,
-        }}/>
+            workingDays: currentService.workingDays,
+            workingHours: currentService.workingHours,
+          }} />
         </View>
         <View style={[styles.rowBetween]}>
           <View style={[styles.categoryChip, { backgroundColor: colors.primaryLight || `${colors.primary}18` }]}>
-          <Ionicons name="cut" size={16} color={colors.primary} />
-          <Text style={[styles.categoryText, { color: colors.primary }]}>{currentService?.category}</Text>
-        </View>
-        <View>
-        </View>
-        {!!presenceLabel && (
-          <View style={[styles.lastSeen]}>
-            <Text style={{ color: presence?.state === 'online' ? '#22c55e' : theme.colors.textSecondary }}>
-            {presenceLabel}
-          </Text>
+            <Ionicons name="cut" size={16} color={colors.primary} />
+            <Text style={[styles.categoryText, { color: colors.primary }]}>{currentService?.category}</Text>
           </View>
-        )}
+          <View>
+          </View>
+          {!!presenceLabel && (
+            <View style={[styles.lastSeen]}>
+              <Text style={{ color: presence?.state === 'online' ? '#22c55e' : theme.colors.textSecondary }}>
+                {presenceLabel}
+              </Text>
+            </View>
+          )}
         </View>
-        
+
         <View style={styles.locationRow}>
           <Text style={{ fontSize: 14 }}>📍</Text>
           <Text style={[styles.locationText, { color: colors.textSecondary }]}>
@@ -514,8 +522,8 @@ export default function DetailScreen() {
           <MaterialTabBar
             {...props}
             style={{ backgroundColor: colors.surface }}
-            activeColor={colors.primary} 
-            inactiveColor={colors.text} 
+            activeColor={colors.primary}
+            inactiveColor={colors.text}
             indicatorStyle={{ backgroundColor: colors.primary }}
           />
         )}

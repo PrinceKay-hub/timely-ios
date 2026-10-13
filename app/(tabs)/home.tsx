@@ -1,16 +1,3 @@
-// app/(tabs)/index.tsx (or wherever Home.tsx lives)
-//
-// Diff summary from your version:
-// 1. Imports + calls the 3 new stores (nearYou, topRated, newOnTimely).
-// 2. useEffect on homeStore.location triggers Near You — fires on
-//    every mount (including when location is already resolved from a
-//    prior visit), so no "stuck on loading" issue like the Flutter
-//    BlocListener had.
-// 3. onScroll handler on the outer ScrollView triggers
-//    serviceData.fetchNextPage() near the bottom.
-// 4. Inserted <HorizontalServiceSection /> x3 into the layout.
-// 5. onRefresh also refreshes Top Rated + New on Timely.
-
 import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
@@ -22,8 +9,8 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
-import { db } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/firebase';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 import { useAuthStore } from '@/stores/auth';
 import messaging from '@react-native-firebase/messaging';
@@ -41,13 +28,14 @@ import { CategoriesSection } from '../../components/categoriesscetion';
 import { RecommendedSection } from '../../components/recommendedsection';
 import { HorizontalServiceSection } from '../../components/HorizontalServiceSection';
 import { Snackbar } from '../../components/Snackbar';
+import { PhoneNumberModal } from '@/components/Phonenumbermodal';
 
 const SCROLL_BOTTOM_THRESHOLD = 400;
 
 export default function Home() {
   const { theme } = useTheme();
   const styles = useMemo(() => getStyles(theme), [theme]);
-  const { user, profile } = useAuthStore();
+  const { user, profile, updateUserProfile } = useAuthStore();
   const { loadCategories, updateLocation, location } = useHomeStore();
   const { services, fetchServiceData, fetchNextPage } = useServiceDataStore();
 
@@ -184,6 +172,7 @@ export default function Home() {
     setSnackbarVisible(status === 'offline');
   }, [status]);
 
+
   return (
     <View style={styles.root}>
       <StatusBar translucent backgroundColor="transparent" />
@@ -224,6 +213,14 @@ export default function Home() {
         />
         <RecommendedSection />
       </ScrollView>
+
+      <PhoneNumberModal
+         visible={!!profile && profile.phone == null}
+         onSubmit={async (phone) => {
+           updateUserProfile({ phone });
+        }}
+        onClose={() => {}}
+       />
 
       <Snackbar
         message="You are offline. Some features may be limited."

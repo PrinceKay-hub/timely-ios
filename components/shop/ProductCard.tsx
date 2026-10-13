@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { Product } from "@/types/product";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "@/providers/ThemeProvider";
+import { findCurrency } from "../Currencypickermodal";
 
 interface Props {
   product: Product;
@@ -20,7 +21,7 @@ export function ProductCard({ product, cardWidth }: Props) {
   const colors = theme.colors;
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const locationLabel = product.location?.district ?? null;
+  const locationLabel = product.location || null;
 
   return (
     <TouchableOpacity
@@ -45,7 +46,7 @@ export function ProductCard({ product, cardWidth }: Props) {
         {product.name}
       </Text>
       <Text style={[styles.cardPrice, { color: colors.primary }]}>
-        {product.currency} {product.price.toLocaleString()}
+        {findCurrency(product.currency).symbol}{product.price.toLocaleString()}
       </Text>
       {locationLabel && (
         <View style={styles.cardMetaRow}>

@@ -34,6 +34,8 @@ import {
   broadcastPendingChat,
   onPendingChat,
 } from '@/types/pendingNavigation';
+import { handleCallPushData } from '@/services/callService';
+import { CallOverlay } from '@/components/CallOverlay';
 
 SplashScreen.preventAutoHideAsync();
 configureGoogleSignIn();
@@ -61,11 +63,11 @@ export default function RootLayout() {
     loadStoredData();
   }, []);
 
-  // ── Notification TAP handling (mount-once) ────────────────────────────────
+    // ── Notification TAP handling (mount-once) ────────────────────────────────
   // Cold start  → setPendingChat()       (index.tsx will consume it)
   // Runtime tap → broadcastPendingChat() (the effect below navigates)
-  // NOTE: we do NOT navigate from here. Routing is owned by index.tsx on
-  // cold start, and by the onPendingChat listener on runtime taps.
+  // Call pushes are intercepted first: they open the incoming-call screen
+  // instead of navigating anywhere.
   useEffect(() => {
     let cancelled = false;
 
@@ -80,11 +82,13 @@ export default function RootLayout() {
     };
 
     const handleColdStart = (data: Record<string, any> | undefined) => {
+      if (handleCallPushData(data)) return;
       const id = extractChatId(data);
       if (id) setPendingChat(id);
     };
 
     const handleRuntimeTap = (data: Record<string, any> | undefined) => {
+      if (handleCallPushData(data)) return; 
       const id = extractChatId(data);
       if (id) broadcastPendingChat(id);
     };
@@ -104,13 +108,19 @@ export default function RootLayout() {
       handleRuntimeTap(msg.data)
     );
 
-    // (3) Tapped while app is foregrounded (expo-notifications)
+    // (3) Tap reported by expo-notifications. Custom push keys can appear in
+    // content.data or in the raw trigger payload, so merge both.
     const unsubResponse =
-      Notifications.addNotificationResponseReceivedListener((r) =>
-        handleRuntimeTap(
-          r.notification.request.content.data as Record<string, any>
-        )
-      );
+      Notifications.addNotificationResponseReceivedListener((r) => {
+        const request = r.notification.request;
+        const trigger = request.trigger as
+          | { payload?: Record<string, any> }
+          | null;
+        handleRuntimeTap({
+          ...(trigger?.payload ?? {}),
+          ...((request.content.data as Record<string, any> | undefined) ?? {}),
+        });
+      });
 
     return () => {
       cancelled = true;
@@ -196,6 +206,7 @@ export default function RootLayout() {
               <Stack.Screen name="search/index"              options={{ headerShown: false }} />
               <Stack.Screen name="location/regions"          options={{ headerShown: false }} />
               <Stack.Screen name="search/results"            options={{ headerShown: false }} />
+              <Stack.Screen name="search/providermapscreen"  options={{ headerShown: false }} />
               <Stack.Screen name="search/categoryresults"    options={{ headerShown: false }} />
               <Stack.Screen name="portfolio/portfolioscreen" options={{ headerShown: false }} />
               <Stack.Screen name="about"                     options={{ headerShown: false }} />
@@ -215,7 +226,8 @@ export default function RootLayout() {
               <Stack.Screen name="shop/search"               options={{ headerShown: false }} />
               <Stack.Screen name="manage-shop/index"         options={{ headerShown: false }} />
             </Stack>
-
+             <CallOverlay />
+            
             <AppStoreUpdateAlert />
             <UpdateModal
               status={status}

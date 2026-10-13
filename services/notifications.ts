@@ -13,15 +13,35 @@ import { Platform, DeviceEventEmitter } from 'react-native';
 import { auth, db } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import * as Device from 'expo-device';
+import { acceptCall, handleCallPushData } from './callService';
 
 // ── Notification handler ──────────────────────────────────────────────────
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    // Custom push keys can appear in content.data or in the raw payload
+    const trigger = notification.request.trigger as
+      | { payload?: Record<string, unknown> }
+      | null;
+    const data = notification.request.content.data as
+      | Record<string, unknown>
+      | undefined;
+    const type = data?.type ?? trigger?.payload?.type;
+
+    if (type === 'incoming_call') {
+      return {
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+    return {
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    };
+  },
 });
 
 // Single shared messaging instance
@@ -96,6 +116,14 @@ export const initDeviceInfo = async () => {
 // app is in the foreground and the user has NOT tapped anything.
 export const onMessageListener = () => {
   return onMessage(messagingInstance, async (remoteMessage) => {
+    if (handleCallPushData(remoteMessage.data)) return;
+    const data = remoteMessage.data;
+    if (data?.type === 'incoming_call' && typeof data.callId === 'string') {
+      // TEMP for testing: auto-accept. Step 3 replaces this with the CallKit screen.
+      void acceptCall(data.callId, (data.callerName as string) ?? undefined);
+      return;
+    }
+    if (data?.type === 'call_cancelled') return;
     const { title, body } = remoteMessage.notification || {};
     if (!title && !body) return;
 

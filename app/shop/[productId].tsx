@@ -36,6 +36,7 @@ import { Product } from "../../types/product";
 import { CATEGORIES } from "../../types/product";
 import GalleryWidget from "@/components/Gallerywidget";
 import { useTheme } from "@/providers/ThemeProvider";
+import { findCurrency } from "@/components/Currencypickermodal";
 
 const { width } = Dimensions.get("window");
 
@@ -245,9 +246,7 @@ export default function ProductDetailScreen() {
   const categoryLabel =
     CATEGORIES.find((c) => c.id === product.category)?.label ?? product.category;
   const contactLabel = product.contact ? "Call Now" : "Message seller";
-  const locationLine = product.location
-    ? [product.location.district, product.location.region].filter(Boolean).join(", ")
-    : null;
+  const locationLine = product.location || null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -327,7 +326,7 @@ export default function ProductDetailScreen() {
           <View style={styles.titleRow}>
             <Text style={styles.name}>{product.name}</Text>
             <Text style={[styles.price, { color: colors.primary }]}>
-              {product.currency} {product.price.toLocaleString()}
+              {findCurrency(product.currency).symbol}{product.price.toLocaleString()}
             </Text>
           </View>
 
@@ -357,9 +356,6 @@ export default function ProductDetailScreen() {
               <MaterialCommunityIcons name="map-marker-outline" size={18} color={colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.locationText}>{locationLine}</Text>
-                {product.location?.landmark && (
-                  <Text style={styles.landmarkText}>Near {product.location.landmark}</Text>
-                )}
               </View>
             </View>
           )}
@@ -416,7 +412,7 @@ export default function ProductDetailScreen() {
                       {item.name}
                     </Text>
                     <Text style={[styles.relatedPrice, { color: colors.primary }]}>
-                      {item.currency} {item.price.toLocaleString()}
+                      {findCurrency(product.currency).symbol}{product.price.toLocaleString()}
                     </Text>
                   </TouchableOpacity>
                 ))}

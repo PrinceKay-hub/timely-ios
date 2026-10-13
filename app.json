@@ -17,7 +17,9 @@
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "bundleIdentifier": "com.timely.booking",
-      "associatedDomains": ["applinks:timelygh.com"],
+      "associatedDomains": [
+        "applinks:timelygh.com"
+      ],
       "entitlements": {
         "aps-environment": "production"
       },
@@ -75,9 +77,9 @@
           "action": "VIEW",
           "data": [
             {
-            "scheme": "com.googleusercontent.apps.131563851716-63e80lu1nu5dnbq2r3jg7urcm7d4dpi1"
-          },
-          {
+              "scheme": "com.googleusercontent.apps.131563851716-63e80lu1nu5dnbq2r3jg7urcm7d4dpi1"
+            },
+            {
               "scheme": "https",
               "host": "timelygh.com",
               "pathPrefix": "/"
@@ -126,8 +128,24 @@
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "expo-notifications",
-      ["expo-apple-authentication"]
-      
+      [
+        "expo-apple-authentication"
+      ],
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Timely uses your location to show beauty providers near you."
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Timely does not use your camera for audio calls.",
+          "microphonePermission": "Timely needs the microphone for calls."
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

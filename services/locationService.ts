@@ -26,6 +26,30 @@ export const fetchAllRegions = async (): Promise<Map<string, string[]>> => {
 
 
 
+export async function getAddressFromCoordinates(
+  latitude: number,
+  longitude: number
+): Promise<string | null> {
+  try {
+    const results = await Location.reverseGeocodeAsync({ latitude, longitude });
+    const p = results[0];
+    if (!p) return null;
+
+    // Prefer the pre-formatted address when the platform provides it
+    if (p.formattedAddress) return p.formattedAddress;
+
+    const parts = [
+      p.city,
+      p.region,
+    ].filter((part): part is string => !!part && part.trim().length > 0);
+
+    return parts.length ? parts.join(", ") : null;
+  } catch (e) {
+    console.log("Reverse geocoding failed", e);
+    return null;
+  }
+}
+
 export async function getAddressFromLatLng(
   latitude: number,
   longitude: number

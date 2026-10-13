@@ -39,11 +39,7 @@ export interface Product {
   status: ProductStatus;
   contact: string;
   isDelivery: boolean;
-  location: {
-    region: string;
-    district: string;
-    landmark: string | null;
-  } | null;
+  location: string;
   viewCount: number;
   createdAt: number;
   updatedAt: number;

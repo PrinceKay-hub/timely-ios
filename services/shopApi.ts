@@ -1,5 +1,4 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { ProductStatus } from "@/types/product";
 
 interface UploadResult {
   key: string;
@@ -39,12 +38,9 @@ export interface CreateProductInput {
   imageKeys: string[];
   contact: string;
   isDelivery: boolean;
-  location: {
-    region: string;
-    district: string;
-    landmark: string;
-  };
+  location: string;
   sellerName: string;
+  currency: string;
 }
 
 export async function createProduct(input: CreateProductInput) {
@@ -69,11 +65,8 @@ export interface UpdateProductInput {
   newImageKeys: string[];
   contact: string;
   isDelivery: boolean;
-  location: {
-    region: string;
-    district: string;
-    landmark: string;
-  };
+  location: string;
+  currency: string;
 }
 
 export async function updateProduct(input: UpdateProductInput) {

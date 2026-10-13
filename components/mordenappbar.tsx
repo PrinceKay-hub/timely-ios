@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/providers/ThemeProvider';
 import { useAuthStore } from '@/stores/auth';
-import { useUnreadChatCount } from '@/stores/chat';
+import { useUnreadChatCount, webrtcSmokeTest } from '@/stores/chat';
 
 interface ModernAppBarProps {
   userInfo: Record<string, any>;
@@ -78,7 +78,7 @@ export const ModernAppBar: React.FC<ModernAppBarProps> = ({ userInfo }) => {
         </TouchableOpacity>
       <TouchableOpacity
         style={styles.searchBtn}
-        onPress={() => router.push('/search')}
+        onPress={() => router.push('/search/providermapscreen')}
         activeOpacity={0.8}
       >
         <Text style={styles.searchIcon}>🔍</Text>
