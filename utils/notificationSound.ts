@@ -28,7 +28,7 @@ export const useNotificationSound = () => {
 
 // 3. Configure the audio session (can be called once at app startup)
 export const configureAudioSession = async () => {
-  // The API is very similar to expo-av
+  
   await setAudioModeAsync({
     playsInSilentMode: true, // Play even when the silent switch is on (iOS)
     shouldPlayInBackground: false, // Do not keep playing in the background
