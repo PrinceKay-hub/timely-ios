@@ -32,7 +32,7 @@ export const getAllServices = async (): Promise<Service[]> => {
   try {
     const q = query(
       servicesCollection(),
-      //where('status', '==', 'approved'),
+      where('status', '==', 'approved'),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -113,7 +113,7 @@ export const getNearbyServices = async ({
         getDocs(
           query(
             servicesCollection(),
-            //where('status', '==', 'approved'),
+            where('status', '==', 'approved'),
             orderBy('geohash'),
             startAt(start),
             endAt(end)

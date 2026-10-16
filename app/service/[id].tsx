@@ -29,6 +29,8 @@ import {
 } from 'react-native';
 import { MaterialTabBar, Tabs } from 'react-native-collapsible-tab-view';
 import { isCallingAvailable, startCall } from '@/services/callService';
+import { isCallActive, useCallStore } from '@/stores/callStore';
+import { CallOptionsSheet } from '@/components/CallOptionsSheet';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 300;
@@ -59,6 +61,8 @@ export default function DetailScreen() {
     message: string;
     type: 'error' | 'success' | 'info';
   }>({ visible: false, message: '', type: 'info' });
+
+  const [callSheetOpen, setCallSheetOpen] = useState(false);
 
   const hideSnackbar = () => {
     setSnackbar(prev => ({ ...prev, visible: false }));
@@ -108,25 +112,26 @@ export default function DetailScreen() {
     }
   };
 
+  const inAppDisabledReason = !isCallingAvailable()
+    ? "Not available in this version"
+    : isCallActive()
+      ? "You're already on a call"
+      : undefined;
+
   const handleCall = async () => {
-    // if (!isCallingAvailable()) return;
-    // await startCall({
-    // calleeId: currentService?.providerId,   // your field names
-    // contextType: 'service',
-    // serviceId: currentService?.id,
-    // peerName: currentService?.providerName,
-    //}).catch(() => {});
-    if (!currentService?.number) {
-      Alert.alert('Error', 'Phone number not available');
-      return;
+    try {
+      if (!isCallingAvailable()) return;
+      await startCall({
+        calleeId: currentService?.providerId,       // the provider's user id
+        contextType: "service",        // or "chat"
+        serviceId: currentService?.id,       // omit for chat
+        peerName: currentService?.name,
+      });
+    } catch (e) {
+      // startCall already put a friendly message in the store
+      Alert.alert("Call failed", useCallStore.getState().error ?? "Please try again.");
     }
-    const url = `tel:${currentService.number}`;
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert('Error', 'Cannot make a call');
-    }
+   
   };
 
   // Replaces the old WhatsApp deep-link — messaging now happens in-app via
@@ -410,7 +415,7 @@ export default function DetailScreen() {
       </View>
 
       <View style={styles.quickActions}>
-        <QuickAction icon="call-outline" label="Call" onPress={handleCall} />
+        <QuickAction icon="call-outline" label="Call" onPress={() => setCallSheetOpen(true)} />
         {currentService?.providerId !== user?.uid && (
           <QuickAction icon="chatbubble-outline" label="Message" onPress={handleMessage} loading={isOpeningChat} />
         )}
@@ -546,6 +551,16 @@ export default function DetailScreen() {
           <ActivityIndicator size="large" color="white" />
         </View>
       )}
+
+      <CallOptionsSheet
+        visible={callSheetOpen}
+        onClose={() => setCallSheetOpen(false)}
+        providerName={currentService.name}
+        phone={currentService.number}
+        photoUrl={currentService.images[0]}
+        inAppDisabledReason={inAppDisabledReason}
+        onInAppCall={handleCall}
+      />
 
       <Snackbar
         message={snackbar.message}

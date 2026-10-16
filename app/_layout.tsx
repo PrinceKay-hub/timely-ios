@@ -34,7 +34,7 @@ import {
   broadcastPendingChat,
   onPendingChat,
 } from '@/types/pendingNavigation';
-import { handleCallPushData } from '@/services/callService';
+import { handleCallPushData, initCallKit, registerVoipTokenForUser, requestMicPermissionEarly } from '@/services/callService';
 import { CallOverlay } from '@/components/CallOverlay';
 
 SplashScreen.preventAutoHideAsync();
@@ -48,6 +48,8 @@ export default function RootLayout() {
   const [modalDismissed, setModalDismissed] = useState(false);
   const { playNotificationSound } = useNotificationSound();
   const router = useRouter();
+
+  useEffect(() => { initCallKit(); }, []);
 
   // ── Hide splash ───────────────────────────────────────────────────────────
   // Wait until auth has fully settled (profileLoading === false). Hiding it
@@ -63,7 +65,16 @@ export default function RootLayout() {
     loadStoredData();
   }, []);
 
-    // ── Notification TAP handling (mount-once) ────────────────────────────────
+  useEffect(() => {
+    if (!user?.uid) return;
+    return registerVoipTokenForUser(user.uid);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (user?.uid) void requestMicPermissionEarly();
+  }, [user?.uid]);
+
+  // ── Notification TAP handling (mount-once) ────────────────────────────────
   // Cold start  → setPendingChat()       (index.tsx will consume it)
   // Runtime tap → broadcastPendingChat() (the effect below navigates)
   // Call pushes are intercepted first: they open the incoming-call screen
@@ -88,7 +99,7 @@ export default function RootLayout() {
     };
 
     const handleRuntimeTap = (data: Record<string, any> | undefined) => {
-      if (handleCallPushData(data)) return; 
+      if (handleCallPushData(data)) return;
       const id = extractChatId(data);
       if (id) broadcastPendingChat(id);
     };
@@ -195,39 +206,39 @@ export default function RootLayout() {
           <SafeAreaProvider>
             <StatusBar style="auto" />
             <Stack>
-              <Stack.Screen name="index"                     options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)"                    options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)"                    options={{ headerShown: false }} />
-              <Stack.Screen name="OnboardingScreen"          options={{ headerShown: false }} />
-              <Stack.Screen name="service/[id]"              options={{ headerShown: false }} />
-              <Stack.Screen name="booking/[id]"              options={{ headerShown: false }} />
-              <Stack.Screen name="reschedule/[id]"           options={{ headerShown: false }} />
-              <Stack.Screen name="rebook/[id]"               options={{ headerShown: false }} />
-              <Stack.Screen name="search/index"              options={{ headerShown: false }} />
-              <Stack.Screen name="location/regions"          options={{ headerShown: false }} />
-              <Stack.Screen name="search/results"            options={{ headerShown: false }} />
-              <Stack.Screen name="search/providermapscreen"  options={{ headerShown: false }} />
-              <Stack.Screen name="search/categoryresults"    options={{ headerShown: false }} />
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="OnboardingScreen" options={{ headerShown: false }} />
+              <Stack.Screen name="service/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="booking/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="reschedule/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="rebook/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="search/index" options={{ headerShown: false }} />
+              <Stack.Screen name="location/regions" options={{ headerShown: false }} />
+              <Stack.Screen name="search/results" options={{ headerShown: false }} />
+              <Stack.Screen name="search/providermapscreen" options={{ headerShown: false }} />
+              <Stack.Screen name="search/categoryresults" options={{ headerShown: false }} />
               <Stack.Screen name="portfolio/portfolioscreen" options={{ headerShown: false }} />
-              <Stack.Screen name="about"                     options={{ headerShown: false }} />
-              <Stack.Screen name="privacy"                   options={{ headerShown: false }} />
-              <Stack.Screen name="terms"                     options={{ headerShown: false }} />
-              <Stack.Screen name="tryon-viewer"              options={{ headerShown: false }} />
-              <Stack.Screen name="edit-profile"              options={{ headerShown: false }} />
-              <Stack.Screen name="chats/[chatId]"            options={{ headerShown: false }} />
-              <Stack.Screen name="chats/chats"               options={{ headerShown: false }} />
-              <Stack.Screen name="manage/registration/chat"  options={{ headerShown: false }} />
+              <Stack.Screen name="about" options={{ headerShown: false }} />
+              <Stack.Screen name="privacy" options={{ headerShown: false }} />
+              <Stack.Screen name="terms" options={{ headerShown: false }} />
+              <Stack.Screen name="tryon-viewer" options={{ headerShown: false }} />
+              <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
+              <Stack.Screen name="chats/[chatId]" options={{ headerShown: false }} />
+              <Stack.Screen name="chats/chats" options={{ headerShown: false }} />
+              <Stack.Screen name="manage/registration/chat" options={{ headerShown: false }} />
               <Stack.Screen name="manage/registration/index" options={{ headerShown: false }} />
-              <Stack.Screen name="hairstyles/feedscreen"     options={{ headerShown: false }} />
-              <Stack.Screen name="hairstyles/virtualtry"     options={{ headerShown: false }} />
-              <Stack.Screen name="favorites"                 options={{ headerShown: false }} />
-              <Stack.Screen name="shop/[productId]"          options={{ headerShown: false }} />
-              <Stack.Screen name="shop/sell"                 options={{ headerShown: false }} />
-              <Stack.Screen name="shop/search"               options={{ headerShown: false }} />
-              <Stack.Screen name="manage-shop/index"         options={{ headerShown: false }} />
+              <Stack.Screen name="hairstyles/feedscreen" options={{ headerShown: false }} />
+              <Stack.Screen name="hairstyles/virtualtry" options={{ headerShown: false }} />
+              <Stack.Screen name="favorites" options={{ headerShown: false }} />
+              <Stack.Screen name="shop/[productId]" options={{ headerShown: false }} />
+              <Stack.Screen name="shop/sell" options={{ headerShown: false }} />
+              <Stack.Screen name="shop/search" options={{ headerShown: false }} />
+              <Stack.Screen name="manage-shop/index" options={{ headerShown: false }} />
             </Stack>
-             <CallOverlay />
-            
+            <CallOverlay />
+
             <AppStoreUpdateAlert />
             <UpdateModal
               status={status}

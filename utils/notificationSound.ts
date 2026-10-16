@@ -1,5 +1,6 @@
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
+import { isCallActive, useCallStore } from "@/stores/callStore";
 
 // 1. A custom hook to manage the notification sound player
 export const useNotificationSound = () => {
@@ -27,11 +28,24 @@ export const useNotificationSound = () => {
 };
 
 // 3. Configure the audio session (can be called once at app startup)
+
+let pendingConfig = false;
 export const configureAudioSession = async () => {
-  
+  if (isCallActive()) {
+    pendingConfig = true; // never touch the session during a call
+    return;
+  }
+  pendingConfig = false;
   await setAudioModeAsync({
-    playsInSilentMode: true, // Play even when the silent switch is on (iOS)
-    shouldPlayInBackground: false, // Do not keep playing in the background
-    interruptionModeAndroid: "duckOthers", // Duck other audio on Android
+    playsInSilentMode: true,
+    shouldPlayInBackground: false,
+    interruptionModeAndroid: "duckOthers",
   });
 };
+
+// Re-apply after the call finishes
+useCallStore.subscribe((s, prev) => {
+  if (prev.phase !== "ended" && s.phase === "ended" && pendingConfig) {
+    void configureAudioSession();
+  }
+});

@@ -1,5 +1,6 @@
 import { auth, db, functions, rtdb } from '@/firebase';
 import { useTheme } from '@/providers/ThemeProvider';
+import { clearVoipTokenForUser } from '@/services/callService';
 import { useAuthStore } from '@/stores/auth';
 import { ThemeMode } from '@/stores/useThemeStore';
 import { useNavigation } from '@react-navigation/native';
@@ -456,6 +457,8 @@ export default function Profile({ user }: ProfileScreenProps) {
       // This should rarely fail since the token is valid; log just in case
       console.warn('Could not set offline status before logout', err);
     }
+
+    await clearVoipTokenForUser(user.uid);
   }
 
   // 2. Now sign out (this invalidates the token)

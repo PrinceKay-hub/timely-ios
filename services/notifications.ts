@@ -6,7 +6,6 @@ import {
   onMessage,
   onTokenRefresh,
   setBackgroundMessageHandler,
-  FirebaseMessagingTypes,
 } from '@react-native-firebase/messaging';
 import * as Notifications from 'expo-notifications';
 import { Platform, DeviceEventEmitter } from 'react-native';
