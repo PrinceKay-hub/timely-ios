@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
 import { isCallActive, useCallStore } from "@/stores/callStore";
@@ -15,6 +16,9 @@ export const useNotificationSound = () => {
       // Trigger haptic feedback first
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+      // Never play over a call
+      if (isCallActive()) return;
+
       // In expo-audio, the player stays at the end of the track after playing.
       // We must manually reset the position to 0 to allow it to play again.
       player.seekTo(0);
@@ -31,6 +35,13 @@ export const useNotificationSound = () => {
 
 let pendingConfig = false;
 export const configureAudioSession = async () => {
+  // iOS: calls own the audio session (CallKit + WebRTC). Calling
+  // setAudioModeAsync at launch left the call's microphone silent whenever the
+  // app was started or still launching while a call was being answered
+  // (found by toggling this call on and off: with it, outBytes stayed 0).
+  // The in-app sound still plays; it just follows the system's silent switch.
+  if (Platform.OS === "ios") return;
+
   if (isCallActive()) {
     pendingConfig = true; // never touch the session during a call
     return;

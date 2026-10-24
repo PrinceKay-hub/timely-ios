@@ -37,6 +37,10 @@ import {
 import { handleCallPushData, initCallKit, registerVoipTokenForUser, requestMicPermissionEarly } from '@/services/callService';
 import { CallOverlay } from '@/components/CallOverlay';
 
+// As early as possible, before React renders. CallKit replays events that
+// happened before JS started once these listeners exist.
+initCallKit();
+
 SplashScreen.preventAutoHideAsync();
 configureGoogleSignIn();
 
@@ -48,8 +52,6 @@ export default function RootLayout() {
   const [modalDismissed, setModalDismissed] = useState(false);
   const { playNotificationSound } = useNotificationSound();
   const router = useRouter();
-
-  useEffect(() => { initCallKit(); }, []);
 
   // ── Hide splash ───────────────────────────────────────────────────────────
   // Wait until auth has fully settled (profileLoading === false). Hiding it
@@ -172,7 +174,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (!user || profileLoading || !profile) return;
 
-    configureAudioSession();
+    configureAudioSession(); // no-op on iOS, see notificationSound.ts
     initNotifications();
     initDeviceInfo();
 

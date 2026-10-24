@@ -65,6 +65,7 @@ function getCallKit(): CallKit | null {
 
 // ---------- Module state (one call at a time) ----------
 const RING_TIMEOUT_MS = 45_000;
+const AUDIO_SESSION_WAIT_MS = 4_000;
 
 type CandidateData = {
   candidate: string;
@@ -84,6 +85,11 @@ let unsubCall: Unsubscribe | null = null;
 let unsubCandidates: Unsubscribe | null = null;
 const pendingLocal: CandidateData[] = [];
 
+// iOS: CallKit activates the audio session for us. Starting the mic before
+// that leaves capture dead (outBytes = 0), so the callee waits for it.
+let audioActive = false;
+let audioWaiters: (() => void)[] = [];
+
 // Incoming calls that CallKit is ringing for but we haven't answered yet
 const incomingSessions = new Map<string, { serverId: string; name: string }>();
 const ringingWatchers = new Map<string, Unsubscribe>(); // serverCallId -> unsub
@@ -96,6 +102,35 @@ function listen(peer: RTCPeerConnection, type: string, handler: Listener) {
       addEventListener: (t: string, h: Listener) => void;
     }
   ).addEventListener(type, handler);
+}
+
+// Lightweight call log (console only)
+function trace(msg: string, data?: Record<string, unknown>) {
+  console.log("[call]", msg, data ?? "");
+}
+
+// Resolves once CallKit has activated the audio session (iOS only).
+// Times out instead of hanging the call if the event never arrives.
+function waitForAudioSession(ms = AUDIO_SESSION_WAIT_MS): Promise<void> {
+  if (audioActive || Platform.OS !== "ios" || !getCallKit()) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const t = setTimeout(() => {
+      trace("audio session wait timed out", { ms });
+      resolve();
+    }, ms);
+    audioWaiters.push(() => {
+      clearTimeout(t);
+      resolve();
+    });
+  });
+}
+
+function markAudioActive() {
+  audioActive = true;
+  trace("audio session activated");
+  audioWaiters.splice(0).forEach((resolve) => resolve());
 }
 
 // ---------- Helpers ----------
@@ -186,7 +221,9 @@ async function failNativeAnswer() {
   }
 }
 
-// Media is flowing: let CallKit move the call to "connected"
+// Let CallKit move the call to "connected". For an incoming call this also
+// fulfils the pending answer action, which is what makes iOS activate the
+// audio session. Safe to call more than once.
 function reportNativeConnected() {
   const ck = getCallKit();
   if (!ck || !nativeId) return;
@@ -241,6 +278,7 @@ async function setup() {
   const rtc = getWebRTC();
   if (!rtc) throw new Error("Calling is not available in this build");
   await ensureMicPermission();
+  trace("mic permission ok");
 
   const iceServers = await fetchIceServers();
   const peer = new rtc.RTCPeerConnection({ iceServers } as never);
@@ -252,7 +290,7 @@ async function setup() {
   listen(peer, "connectionstatechange", () => {
     const state = (peer as unknown as { connectionState?: string })
       .connectionState;
-    console.log("PC state:", state);
+    trace("pc state", { state });
     if (state === "connected") {
       stopRingback();
       if (ringTimer) clearTimeout(ringTimer);
@@ -266,6 +304,11 @@ async function setup() {
   localStream = await rtc.mediaDevices.getUserMedia({
     audio: true,
     video: false,
+  });
+  trace("getUserMedia done", {
+    tracks: localStream.getAudioTracks().length,
+    appState: AppState.currentState,
+    audioActive,
   });
   localStream.getAudioTracks().forEach((t) => peer.addTrack(t, localStream!));
   // Remote audio plays automatically; no RTCView needed
@@ -409,7 +452,14 @@ export function initCallKit() {
     if (session.origin === "incoming") void onIncomingSession(session);
   });
   ck.addCallAnsweredListener(({ id, requestId }) => {
-    console.log("[call] answeredFromSystem", id, requestId, "nativeId=", nativeId);
+    console.log(
+      "[call] answeredFromSystem",
+      id,
+      requestId,
+      "nativeId=",
+      nativeId,
+    );
+    trace("answeredFromSystem", { appState: AppState.currentState });
     if (nativeId === id) {
       console.log("[call] duplicate answer ignored", requestId);
       return;
@@ -421,6 +471,12 @@ export function initCallKit() {
     void onEndedFromSystem(session);
   });
   ck.addSetMutedActionListener(({ isMuted }) => applyMute(isMuted));
+  ck.addAudioSessionActivatedListener?.(() => markAudioActive());
+  // Not every version of the library exposes this; harmless if missing
+  (ck as any).addAudioSessionDeactivatedListener?.(() => {
+    audioActive = false;
+    trace("audio session deactivated");
+  });
 }
 
 async function onIncomingSession(session: CallSession) {
@@ -547,9 +603,9 @@ function listenToCallDoc(id: string) {
     if (isCaller && !remoteDescriptionSet && data.answer && rtc) {
       remoteDescriptionSet = true;
       stopRingback();
-      reportNativeConnected();    
+      reportNativeConnected();
       const hb = setInterval(() => console.log("hb", Date.now() % 100000), 500);
-      try { 
+      try {
         await pc?.setRemoteDescription(
           new rtc.RTCSessionDescription({
             type: data.answer.type,
@@ -676,6 +732,7 @@ export async function acceptCall(
   });
 
   try {
+    trace("acceptCall start", { id });
     await auth.authStateReady();
     const ref = doc(db, "calls", id);
     const data = (await getDoc(ref)).data();
@@ -686,12 +743,21 @@ export async function acceptCall(
     ) {
       throw new Error("Call is no longer available");
     }
+
+    // Fulfil the CallKit answer NOW so iOS activates the audio session,
+    // then wait for that activation before the mic starts. Previously this
+    // only happened once ICE connected (~13s later), so capture never began.
+    reportNativeConnected();
+    await waitForAudioSession();
+    trace("audio session ready", { audioActive });
+
     await Promise.race([
       setup(),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Call setup timed out")), 15_000),
       ),
     ]);
+    trace("setup done");
     const rtc = getWebRTC()!;
     await pc!.setRemoteDescription(
       new rtc.RTCSessionDescription({
@@ -699,10 +765,13 @@ export async function acceptCall(
         sdp: data.offer.sdp,
       }),
     );
+    trace("remote description set");
     remoteDescriptionSet = true;
 
     const answer = await pc!.createAnswer();
+    trace("createAnswer done");
     await pc!.setLocalDescription(answer);
+    trace("setLocalDescription done");
 
     // Rules only allow this while the status is still "ringing"
     await updateDoc(ref, {
@@ -710,6 +779,7 @@ export async function acceptCall(
       status: "accepted",
       answeredAt: serverTimestamp(),
     });
+    trace("answer written to firestore");
 
     listenToRemoteCandidates(id);
     listenToCallDoc(id);
@@ -802,6 +872,9 @@ async function cleanup(endTone?: EndTone) {
   answerRequestId = null;
   remoteDescriptionSet = false;
   pendingLocal.length = 0;
+  // Release any waiter and reset so the next call doesn't see a stale "true"
+  audioActive = false;
+  audioWaiters.splice(0).forEach((resolve) => resolve());
   setCall({
     phase: "ended",
     callId: null,
